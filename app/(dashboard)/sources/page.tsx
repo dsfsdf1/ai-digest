@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { Source } from '@/lib/types'
+import { format } from 'date-fns'
+import { ru } from 'date-fns/locale'
 
 export default function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ title: '', url: '', category: 'Общее' })
+  const [form, setForm] = useState({ title: '', url: '', category: 'Строительство' })
   const [testing, setTesting] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; error?: string }>>({})
 
@@ -27,7 +29,7 @@ export default function SourcesPage() {
       body: JSON.stringify(form),
     })
     if (res.ok) {
-      setForm({ title: '', url: '', category: 'Общее' })
+      setForm({ title: '', url: '', category: 'Строительство' })
       setAdding(false)
       load()
     }
@@ -57,110 +59,144 @@ export default function SourcesPage() {
     load()
   }
 
-  if (loading) return <div className="text-gray-500">Загрузка...</div>
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-slate-400 text-sm">Загрузка...</div>
+    </div>
+  )
+
+  const active = sources.filter((s) => s.enabled).length
+  const total = sources.length
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-2xl">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Источники</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{sources.length} / 20 источников</p>
+          <h2 className="text-xl font-semibold text-slate-900">Источники новостей</h2>
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-sm text-slate-500">{total} / 20 источников</span>
+            {total > 0 && (
+              <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
+                {active} активных
+              </span>
+            )}
+          </div>
         </div>
-        {sources.length < 20 && (
+        {total < 20 && (
           <button
             onClick={() => setAdding(!adding)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
           >
-            + Добавить
+            <span className="text-lg leading-none">+</span> Добавить
           </button>
         )}
       </div>
 
+      {/* Add form */}
       {adding && (
-        <form onSubmit={add} className="bg-white border rounded-xl p-4 mb-4 space-y-3">
-          <h3 className="font-medium text-sm text-gray-900">Новый источник</h3>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
+          <h3 className="font-semibold text-sm text-slate-900 mb-4">Новый источник</h3>
+          <form onSubmit={add} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Название</label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  required
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Строительная газета"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Категория</label>
+                <input
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Строительство"
+                />
+              </div>
+            </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Название</label>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">RSS URL</label>
               <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                value={form.url}
+                onChange={(e) => setForm({ ...form, url: e.target.value })}
                 required
-                className="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="РБК"
+                type="url"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="https://example.com/rss.xml"
               />
             </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Категория</label>
-              <input
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Общее"
-              />
+            <div className="flex gap-2 pt-1">
+              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                Добавить
+              </button>
+              <button type="button" onClick={() => setAdding(false)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">
+                Отмена
+              </button>
             </div>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">RSS URL</label>
-            <input
-              value={form.url}
-              onChange={(e) => setForm({ ...form, url: e.target.value })}
-              required
-              type="url"
-              className="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="https://rbc.ru/rss/news.rss"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700">
-              Добавить
-            </button>
-            <button type="button" onClick={() => setAdding(false)} className="px-4 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
-              Отмена
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       )}
 
+      {/* Sources list */}
       <div className="space-y-2">
         {sources.map((source) => {
           const testResult = testResults[source.id]
+          const hasError = source.last_error && !testResult?.ok
           return (
-            <div key={source.id} className="bg-white border rounded-xl p-4">
+            <div key={source.id} className={`bg-white border rounded-xl p-4 shadow-sm transition-all ${hasError ? 'border-red-100' : 'border-slate-200'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${source.enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <span className="font-medium text-sm text-gray-900 truncate">{source.title}</span>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{source.category}</span>
+                  {/* Title row */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    <span className="font-medium text-sm text-slate-900 truncate">{source.title}</span>
+                    <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full flex-shrink-0">{source.category}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 truncate pl-4">{source.url}</p>
-                  {source.last_error && (
-                    <p className="text-xs text-red-500 mt-1 pl-4">⚠ {source.last_error}</p>
-                  )}
-                  {testResult && (
-                    <p className={`text-xs mt-1 pl-4 ${testResult.ok ? 'text-green-600' : 'text-red-500'}`}>
+
+                  {/* URL */}
+                  <p className="text-xs text-slate-400 truncate pl-4 mb-1.5">{source.url}</p>
+
+                  {/* Status */}
+                  {testResult ? (
+                    <p className={`text-xs pl-4 font-medium ${testResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                       {testResult.ok ? '✓ Источник работает' : `✗ ${testResult.error}`}
                     </p>
-                  )}
+                  ) : hasError ? (
+                    <p className="text-xs text-red-400 pl-4">⚠ {source.last_error}</p>
+                  ) : source.last_checked_at ? (
+                    <p className="text-xs text-slate-400 pl-4">
+                      Проверен {format(new Date(source.last_checked_at), 'd MMM, HH:mm', { locale: ru })}
+                    </p>
+                  ) : null}
                 </div>
+
+                {/* Actions */}
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => test(source)}
                     disabled={testing === source.id}
-                    className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-50"
+                    className="text-xs text-slate-500 hover:text-slate-700 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-50 transition-colors font-medium"
                   >
                     {testing === source.id ? '...' : 'Проверить'}
                   </button>
                   <button
                     onClick={() => toggle(source)}
-                    className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
+                    className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors font-medium ${
+                      source.enabled
+                        ? 'text-amber-600 hover:bg-amber-50'
+                        : 'text-emerald-600 hover:bg-emerald-50'
+                    }`}
                   >
                     {source.enabled ? 'Выкл' : 'Вкл'}
                   </button>
                   <button
                     onClick={() => remove(source.id)}
-                    className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50"
+                    className="text-xs text-red-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors font-medium"
                   >
                     Удалить
                   </button>
@@ -171,9 +207,10 @@ export default function SourcesPage() {
         })}
 
         {sources.length === 0 && !adding && (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-16 bg-white border border-dashed border-slate-200 rounded-xl">
             <p className="text-4xl mb-3">📰</p>
-            <p>Добавьте первый источник новостей</p>
+            <p className="text-slate-600 font-medium">Нет источников</p>
+            <p className="text-slate-400 text-sm mt-1">Добавьте первый RSS-источник новостей</p>
           </div>
         )}
       </div>

@@ -57,111 +57,146 @@ export default function SettingsPage() {
     setRunning(false)
   }
 
-  if (loading) return <div className="text-gray-500">Загрузка...</div>
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-slate-400 text-sm">Загрузка...</div>
+    </div>
+  )
 
   return (
     <div className="max-w-xl">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Настройки дайджеста</h2>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-slate-900">Настройки дайджеста</h2>
+        <p className="text-sm text-slate-500 mt-1">Время отправки, формат и параметры</p>
+      </div>
 
-      <form onSubmit={save} className="bg-white border rounded-xl p-6 space-y-5">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Время отправки</label>
-            <input
-              type="time"
-              value={settings.send_time ?? '09:00'}
-              onChange={(e) => setSettings({ ...settings, send_time: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Макс. новостей</label>
-            <input
-              type="number"
-              min={5}
-              max={15}
-              value={settings.max_items ?? 15}
-              onChange={(e) => setSettings({ ...settings, max_items: Number(e.target.value) })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Часовой пояс</label>
-          <select
-            value={settings.timezone ?? 'Europe/Moscow'}
-            onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {TIMEZONES.map((tz) => (
-              <option key={tz.value} value={tz.value}>{tz.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Формат дайджеста</label>
-          <div className="flex gap-3">
-            {[
-              { value: 'executive', label: 'Руководительский' },
-              { value: 'short', label: 'Краткий' },
-            ].map((f) => (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => setSettings({ ...settings, format: f.value as 'executive' | 'short' })}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  settings.format === f.value
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'text-gray-600 border-gray-200 hover:bg-gray-50'
-                }`}
+      <form onSubmit={save} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        {/* Schedule */}
+        <div className="p-5 border-b border-slate-100">
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">Расписание</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Время отправки</label>
+              <input
+                type="time"
+                value={settings.send_time ?? '09:00'}
+                onChange={(e) => setSettings({ ...settings, send_time: e.target.value })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Часовой пояс</label>
+              <select
+                value={settings.timezone ?? 'Europe/Moscow'}
+                onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {f.label}
-              </button>
-            ))}
+                {TIMEZONES.map((tz) => (
+                  <option key={tz.value} value={tz.value}>{tz.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between py-2">
-          <div>
-            <p className="text-sm font-medium text-gray-700">Автоотправка</p>
-            <p className="text-xs text-gray-400">Ежедневно в выбранное время</p>
+        {/* Content */}
+        <div className="p-5 border-b border-slate-100">
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">Контент</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Макс. новостей: <span className="text-blue-600">{settings.max_items}</span>
+              </label>
+              <input
+                type="range"
+                min={5}
+                max={15}
+                value={settings.max_items ?? 15}
+                onChange={(e) => setSettings({ ...settings, max_items: Number(e.target.value) })}
+                className="w-full accent-blue-600"
+              />
+              <div className="flex justify-between text-xs text-slate-400 mt-1">
+                <span>5</span><span>15</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Формат</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'executive', label: 'Руководительский', desc: 'С бизнес-инсайтами' },
+                  { value: 'short', label: 'Краткий', desc: 'Только заголовки' },
+                ].map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setSettings({ ...settings, format: f.value as 'executive' | 'short' })}
+                    className={`p-3 rounded-lg text-left border-2 transition-all ${
+                      settings.format === f.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <p className={`text-sm font-medium ${settings.format === f.value ? 'text-blue-700' : 'text-slate-700'}`}>{f.label}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{f.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setSettings({ ...settings, auto_send_enabled: !settings.auto_send_enabled })}
-            className={`w-11 h-6 rounded-full transition-colors ${settings.auto_send_enabled ? 'bg-blue-600' : 'bg-gray-300'}`}
-          >
-            <span className={`block w-4 h-4 bg-white rounded-full shadow transition-transform mx-1 ${settings.auto_send_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-          </button>
         </div>
 
-        <div className="flex gap-3 pt-2">
+        {/* Auto send toggle */}
+        <div className="p-5 border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-700">Автоотправка</p>
+              <p className="text-xs text-slate-400 mt-0.5">Ежедневно в {settings.send_time ?? '09:00'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSettings({ ...settings, auto_send_enabled: !settings.auto_send_enabled })}
+              className={`relative w-12 h-6 rounded-full transition-colors ${settings.auto_send_enabled ? 'bg-blue-600' : 'bg-slate-300'}`}
+            >
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${settings.auto_send_enabled ? 'left-7' : 'left-1'}`} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5">
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              saved
+                ? 'bg-emerald-500 text-white'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            } disabled:opacity-50`}
           >
-            {saved ? '✓ Сохранено' : saving ? 'Сохранение...' : 'Сохранить'}
+            {saved ? '✓ Сохранено' : saving ? 'Сохранение...' : 'Сохранить настройки'}
           </button>
         </div>
       </form>
 
-      <div className="mt-4 bg-white border rounded-xl p-6">
-        <h3 className="font-medium text-sm text-gray-900 mb-1">Ручной запуск</h3>
-        <p className="text-xs text-gray-500 mb-3">Сформировать дайджест прямо сейчас и отправить в чат</p>
-        {runResult && (
-          <p className={`text-sm mb-3 ${runResult.ok ? 'text-green-600' : 'text-red-500'}`}>
-            {runResult.ok ? '✓ Дайджест отправлен' : `✗ ${runResult.error}`}
-          </p>
-        )}
+      {/* Manual run */}
+      <div className="mt-4 bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h3 className="font-semibold text-sm text-slate-900">Ручной запуск</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Сформировать и отправить дайджест сейчас</p>
+          </div>
+          {runResult && (
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${runResult.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+              {runResult.ok ? '✓ Отправлен' : `✗ ${runResult.error}`}
+            </span>
+          )}
+        </div>
         <button
           onClick={runNow}
           disabled={running}
-          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
+          className="w-full bg-slate-900 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:opacity-50 transition-colors"
         >
-          {running ? 'Формирую...' : 'Сформировать дайджест сейчас'}
+          {running ? '⏳ Формирую дайджест...' : '▶ Сформировать дайджест сейчас'}
         </button>
       </div>
     </div>

@@ -2,8 +2,14 @@ import Parser from 'rss-parser'
 import { Article, Source } from '../types'
 
 const parser = new Parser({
-  timeout: 5000,
-  headers: { 'User-Agent': 'AI-Digest-Bot/1.0' },
+  timeout: 8000,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (compatible; AI-Digest-Bot/1.0)',
+    'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+  },
+  customFields: {
+    item: [['media:content', 'mediaContent'], ['yandex:full-text', 'fullText']],
+  },
 })
 
 export async function testSource(url: string): Promise<{ ok: boolean; error?: string }> {
