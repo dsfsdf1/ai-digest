@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db/client'
 import { encrypt } from '@/lib/utils/crypto'
 import { registerBot } from '@/lib/adapters/bitrix24'
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await requireAuth()
+    // MVP: single user — get from DB directly (no session required during OAuth redirect)
+    const { data: userRow } = await db.from('users').select('id').limit(1).single()
+    if (!userRow) {
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login?error=no_user`)
+    }
+    const user = userRow
     const { searchParams } = new URL(req.url)
     const code = searchParams.get('code')
     // For local apps domain comes from env; for cloud apps it's in the query param

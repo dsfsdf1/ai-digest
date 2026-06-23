@@ -13,7 +13,15 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.has('code') && params.has('member_id')) {
-      window.location.href = `/api/bitrix/callback?${params.toString()}`
+      // Bitrix24 OAuth callback landed here — forward to handler
+      const url = `/api/bitrix/callback?${params.toString()}`
+      // Prevent loop: only redirect once
+      if (!sessionStorage.getItem('bitrix_redirected')) {
+        sessionStorage.setItem('bitrix_redirected', '1')
+        window.location.replace(url)
+      } else {
+        sessionStorage.removeItem('bitrix_redirected')
+      }
     }
   }, [])
 
