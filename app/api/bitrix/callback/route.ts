@@ -4,57 +4,77 @@ import { encrypt } from '@/lib/utils/crypto'
 import { registerBot } from '@/lib/adapters/bitrix24'
 
 export async function GET(req: NextRequest) {
-  try {
-    // MVP: single user — get from DB directly (no session required during OAuth redirect)
-    const { data: userRow } = await db.from('users').select('id').limit(1).single()
-    if (!userRow) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login?error=no_user`)
-    }
-    const user = userRow
-    const { searchParams } = new URL(req.url)
-    const code = searchParams.get('code')
-    // For local apps domain comes from env; for cloud apps it's in the query param
-    const domain = searchParams.get('domain') ?? process.env.BITRIX_DOMAIN!
+  const { searchParams } = new URL(req.url)
+  const code = searchParams.get('code')
+  const domain = searchParams.get('domain') ?? process.env.BITRIX_DOMAIN!
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
 
-    if (!code) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/bitrix?error=no_code`)
-    }
+  if (!code) {
+    return NextResponse.redirect(`${APP_URL}/bitrix?error=no_code`)
+  }
 
-    const tokenRes = await fetch(`https://${domain}/oauth/token/?` +
-      new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: process.env.BITRIX_APP_CLIENT_ID!,
-        client_secret: process.env.BITRIX_APP_CLIENT_SECRET!,
-        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/bitrix/callback`,
-        code,
-      })
-    )
+  // MVP: single user
+  const { data: userRow, error: userErr } = await db.from('users').select('id').limit(1).single()
+  if (!userRow) {
+    console.error('No user found:', userErr)
+    return NextResponse.redirect(`${APP_URL}/bitrix?error=no_user`)
+  }
 
-    if (!tokenRes.ok) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/bitrix?error=token_failed`)
-    }
-
-    const tokens = await tokenRes.json()
-
-    await db.from('bitrix_connections').upsert({
-      user_id: user.id,
-      bitrix_domain: domain,
-      member_id: tokens.member_id,
-      access_token_encrypted: encrypt(tokens.access_token),
-      refresh_token_encrypted: encrypt(tokens.refresh_token),
-      status: 'connected',
-      updated_at: new Date().toISOString(),
+  // Exchange code for tokens
+  // redirect_uri must match exactly what's registered in Bitrix24 app handler
+  const tokenUrl = `https://${domain}/oauth/token/?` +
+    new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: process.env.BITRIX_APP_CLIENT_ID!,
+      client_secret: process.env.BITRIX_APP_CLIENT_SECRET!,
+      redirect_uri: `${APP_URL}/api/bitrix/callback`,
+      code,
     })
 
-    // Register bot
-    try {
-      await registerBot(user.id)
-    } catch {
-      // Bot may already exist — not critical
-    }
-
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/bitrix?success=1`)
-  } catch {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login`)
+  let tokenRes: Response
+  try {
+    tokenRes = await fetch(tokenUrl)
+  } catch (e) {
+    console.error('Token fetch failed:', e)
+    return NextResponse.redirect(`${APP_URL}/bitrix?error=token_fetch_failed`)
   }
+
+  const tokenText = await tokenRes.text()
+  console.log('Token response status:', tokenRes.status, 'body:', tokenText.slice(0, 300))
+
+  if (!tokenRes.ok) {
+    return NextResponse.redirect(`${APP_URL}/bitrix?error=token_${tokenRes.status}`)
+  }
+
+  let tokens: Record<string, string>
+  try {
+    tokens = JSON.parse(tokenText)
+  } catch {
+    console.error('Token parse failed:', tokenText)
+    return NextResponse.redirect(`${APP_URL}/bitrix?error=token_parse`)
+  }
+
+  if (tokens.error) {
+    console.error('Token error:', tokens.error, tokens.error_description)
+    return NextResponse.redirect(`${APP_URL}/bitrix?error=${encodeURIComponent(tokens.error)}`)
+  }
+
+  await db.from('bitrix_connections').upsert({
+    user_id: userRow.id,
+    bitrix_domain: domain,
+    member_id: tokens.member_id ?? searchParams.get('member_id'),
+    access_token_encrypted: encrypt(tokens.access_token),
+    refresh_token_encrypted: encrypt(tokens.refresh_token),
+    status: 'connected',
+    updated_at: new Date().toISOString(),
+  })
+
+  // Register bot (non-critical)
+  try {
+    await registerBot(userRow.id)
+  } catch (e) {
+    console.error('Bot registration failed:', e)
+  }
+
+  return NextResponse.redirect(`${APP_URL}/bitrix?success=1`)
 }
