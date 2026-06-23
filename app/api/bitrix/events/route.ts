@@ -8,7 +8,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  let body: Record<string, string> = {}
+  let body: Record<string, unknown> = {}
 
   try {
     const text = await req.text()
@@ -22,19 +22,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const event = body['event'] ?? body['EVENT']
-  const dialogId = body['data[PARAMS][DIALOG_ID]'] ?? body['data[DIALOG_ID]']
-  const message = (body['data[PARAMS][MESSAGE]'] ?? body['data[MESSAGE]'] ?? '').trim()
+  // Support both flat form-encoded keys and nested JSON from Bitrix24
+  const nested = body['data'] as Record<string, Record<string, string>> | undefined
+  const params = nested?.['PARAMS'] ?? {}
+
+  const event = (body['event'] ?? body['EVENT'] ?? '') as string
+  const dialogId = (body['data[PARAMS][DIALOG_ID]'] ?? body['data[DIALOG_ID]'] ?? params['DIALOG_ID'] ?? '') as string
+  const message = ((body['data[PARAMS][MESSAGE]'] ?? body['data[MESSAGE]'] ?? params['MESSAGE'] ?? '') as string).trim()
 
   if (!event || !dialogId) return NextResponse.json({ ok: true })
 
-  const { data: userRow } = await db.from('users').select('id').limit(1).single()
-  if (!userRow) return NextResponse.json({ ok: true })
+  try {
+    const { data: userRow } = await db.from('users').select('id').limit(1).single()
+    if (!userRow) return NextResponse.json({ ok: true })
 
-  const userId = userRow.id
+    const userId = userRow.id
 
-  if (event === 'ONIMBOTMESSAGEADD') {
-    await handleCommand(userId, dialogId, message)
+    if (event === 'ONIMBOTMESSAGEADD') {
+      await handleCommand(userId, dialogId, message)
+    }
+  } catch (e) {
+    console.error('[bitrix/events] error:', e)
   }
 
   return NextResponse.json({ ok: true })
