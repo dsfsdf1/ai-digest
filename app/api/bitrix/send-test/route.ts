@@ -8,20 +8,18 @@ export async function POST() {
     const user = await requireAuth()
 
     const { data: settings } = await db
-      .from('digest_settings')
-      .select('bitrix_chat_id')
-      .eq('user_id', user.id)
-      .single()
+      .from('digest_settings').select('bitrix_chat_id').eq('user_id', user.id).single()
 
     if (!settings?.bitrix_chat_id) {
-      return NextResponse.json({ error: 'Чат не подключён' }, { status: 400 })
+      return NextResponse.json({ error: 'Чат не подключён. Напишите /digest_connect боту в нужном чате.' }, { status: 400 })
     }
 
     await sendBotMessage(user.id, settings.bitrix_chat_id,
-      '✅ Тестовое сообщение от AI News Digest Bot. Подключение работает корректно.')
+      '✅ Тестовое сообщение от AI Дайджест. Подключение работает!')
 
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

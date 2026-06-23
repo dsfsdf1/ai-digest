@@ -4,27 +4,33 @@ import { sendBotMessage } from '@/lib/adapters/bitrix24'
 import { runDigest } from '@/lib/digest'
 
 export async function POST(req: NextRequest) {
-  const body = await req.formData().then((fd) => Object.fromEntries(fd.entries()) as Record<string, string>)
-    .catch(() => req.json().then((j) => j as Record<string, string>).catch(() => ({} as Record<string, string>)))
+  let body: Record<string, string> = {}
 
-  const event = body['event'] as string
-  const memberId = body['auth[member_id]'] as string
-  const dialogId = body['data[PARAMS][DIALOG_ID]'] as string
-  const message = (body['data[PARAMS][MESSAGE]'] as string ?? '').trim()
+  try {
+    const ct = req.headers.get('content-type') ?? ''
+    if (ct.includes('application/json')) {
+      body = await req.json()
+    } else {
+      const fd = await req.formData()
+      fd.forEach((v, k) => { body[k] = String(v) })
+    }
+  } catch {
+    return NextResponse.json({ ok: true })
+  }
 
-  if (!event || !memberId) return NextResponse.json({ ok: true })
+  const event = body['event'] ?? body['EVENT']
+  const dialogId = body['data[PARAMS][DIALOG_ID]'] ?? body['data[DIALOG_ID]']
+  const message = (body['data[PARAMS][MESSAGE]'] ?? body['data[MESSAGE]'] ?? '').trim()
 
-  // Find user by member_id
-  const { data: connection } = await db
-    .from('bitrix_connections')
-    .select('user_id')
-    .eq('member_id', memberId)
-    .single()
+  if (!event || !dialogId) return NextResponse.json({ ok: true })
 
-  if (!connection) return NextResponse.json({ ok: true })
-  const userId = connection.user_id
+  // MVP: single user
+  const { data: userRow } = await db.from('users').select('id').limit(1).single()
+  if (!userRow) return NextResponse.json({ ok: true })
 
-  if (event === 'ONIMBOTMESSAGEADD' || event === 'ONIMJOINCHAT') {
+  const userId = userRow.id
+
+  if (event === 'ONIMBOTMESSAGEADD') {
     await handleCommand(userId, dialogId, message)
   }
 
@@ -35,43 +41,19 @@ async function handleCommand(userId: string, dialogId: string, message: string) 
   const cmd = message.split(' ')[0].toLowerCase()
 
   switch (cmd) {
-    case '/digest_connect':
-      await handleConnect(userId, dialogId)
-      break
-    case '/digest_now':
-      await handleNow(userId, dialogId)
-      break
-    case '/digest_status':
-      await handleStatus(userId, dialogId)
-      break
-    case '/digest_help':
-      await handleHelp(userId, dialogId)
-      break
+    case '/digest_connect': await handleConnect(userId, dialogId); break
+    case '/digest_now':     await handleNow(userId, dialogId); break
+    case '/digest_status':  await handleStatus(userId, dialogId); break
+    case '/digest_help':    await handleHelp(userId, dialogId); break
   }
 }
 
 async function handleConnect(userId: string, dialogId: string) {
-  const { data: connection } = await db
-    .from('bitrix_connections')
-    .select('status')
-    .eq('user_id', userId)
-    .single()
-
-  if (!connection || connection.status !== 'connected') {
-    await sendBotMessage(userId, dialogId,
-      '❌ Bitrix24 не подключён к кабинету. Сначала выполните подключение на сайте сервиса.')
-    return
-  }
-
   const { data: settings } = await db
-    .from('digest_settings')
-    .select('bitrix_chat_id')
-    .eq('user_id', userId)
-    .single()
+    .from('digest_settings').select('bitrix_chat_id').eq('user_id', userId).single()
 
   if (settings?.bitrix_chat_id === dialogId) {
-    await sendBotMessage(userId, dialogId,
-      '✅ Этот чат уже подключён для отправки дайджеста.')
+    await sendBotMessage(userId, dialogId, '✅ Этот чат уже подключён для отправки дайджеста.')
     return
   }
 
@@ -82,7 +64,7 @@ async function handleConnect(userId: string, dialogId: string) {
   })
 
   await sendBotMessage(userId, dialogId,
-    '✅ Чат подключён. Дайджест будет отправляться сюда ежедневно.')
+    '✅ Чат подключён! Дайджест будет отправляться сюда ежедневно.\n\nНапишите /digest_now чтобы получить дайджест прямо сейчас.')
 }
 
 async function handleNow(userId: string, dialogId: string) {
@@ -94,18 +76,18 @@ async function handleNow(userId: string, dialogId: string) {
 }
 
 async function handleStatus(userId: string, dialogId: string) {
-  const [{ data: conn }, { data: settings }, { count }] = await Promise.all([
-    db.from('bitrix_connections').select('status').eq('user_id', userId).single(),
+  const [{ data: settings }, { count }] = await Promise.all([
     db.from('digest_settings').select('*').eq('user_id', userId).single(),
     db.from('sources').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('enabled', true),
   ])
 
   const lines = [
-    conn?.status === 'connected' ? '✅ Bitrix24 подключён.' : '❌ Bitrix24 не подключён.',
-    settings?.bitrix_chat_id ? '✅ Чат подключён.' : '❌ Чат не подключён.',
-    `📰 Активных источников: ${count ?? 0}.`,
-    `🔄 Автоотправка: ${settings?.auto_send_enabled ? 'включена' : 'выключена'}.`,
-    `⏰ Время отправки: ${settings?.send_time ?? '09:00'}.`,
+    '📊 Статус AI Дайджест:',
+    '',
+    settings?.bitrix_chat_id ? '✅ Чат подключён' : '❌ Чат не подключён',
+    `📰 Активных источников: ${count ?? 0}`,
+    `🔄 Автоотправка: ${settings?.auto_send_enabled !== false ? 'включена' : 'выключена'}`,
+    `⏰ Время отправки: ${settings?.send_time ?? '09:00'}`,
   ]
 
   await sendBotMessage(userId, dialogId, lines.join('\n'))
@@ -113,10 +95,10 @@ async function handleStatus(userId: string, dialogId: string) {
 
 async function handleHelp(userId: string, dialogId: string) {
   await sendBotMessage(userId, dialogId,
-    `Команды AI News Digest Bot:\n\n` +
-    `/digest_connect — подключить текущий чат\n` +
-    `/digest_now — сформировать дайджест сейчас\n` +
-    `/digest_status — статус подключения\n` +
-    `/digest_help — помощь`
+    'Команды AI Дайджест:\n\n' +
+    '/digest_connect — подключить этот чат\n' +
+    '/digest_now — получить дайджест сейчас\n' +
+    '/digest_status — статус подключения\n' +
+    '/digest_help — список команд'
   )
 }
