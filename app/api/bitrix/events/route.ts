@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db/client'
+import { sendBotMessage } from '@/lib/adapters/bitrix24'
+import { runDigest } from '@/lib/digest'
 
 export async function GET() {
   return NextResponse.json({ ok: true, status: 'events endpoint alive' })
 }
-import { db } from '@/lib/db/client'
-import { sendBotMessage } from '@/lib/adapters/bitrix24'
-import { runDigest } from '@/lib/digest'
 
 export async function POST(req: NextRequest) {
   let body: Record<string, string> = {}
@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
     if (ct.includes('application/json')) {
       body = JSON.parse(text)
     } else {
-      // application/x-www-form-urlencoded (Bitrix24 default)
       new URLSearchParams(text).forEach((v, k) => { body[k] = v })
     }
   } catch {
@@ -29,7 +28,6 @@ export async function POST(req: NextRequest) {
 
   if (!event || !dialogId) return NextResponse.json({ ok: true })
 
-  // MVP: single user
   const { data: userRow } = await db.from('users').select('id').limit(1).single()
   if (!userRow) return NextResponse.json({ ok: true })
 
@@ -44,7 +42,6 @@ export async function POST(req: NextRequest) {
 
 async function handleCommand(userId: string, dialogId: string, message: string) {
   const cmd = message.split(' ')[0].toLowerCase()
-
   switch (cmd) {
     case '/digest_connect': await handleConnect(userId, dialogId); break
     case '/digest_now':     await handleNow(userId, dialogId); break
@@ -58,7 +55,7 @@ async function handleConnect(userId: string, dialogId: string) {
     .from('digest_settings').select('bitrix_chat_id').eq('user_id', userId).single()
 
   if (settings?.bitrix_chat_id === dialogId) {
-    await sendBotMessage(userId, dialogId, '✅ Этот чат уже подключён для отправки дайджеста.')
+    await sendBotMessage(userId, dialogId, '✅ Этот чат уже подключён.')
     return
   }
 
@@ -86,16 +83,13 @@ async function handleStatus(userId: string, dialogId: string) {
     db.from('sources').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('enabled', true),
   ])
 
-  const lines = [
-    '📊 Статус AI Дайджест:',
-    '',
+  await sendBotMessage(userId, dialogId, [
+    '📊 Статус AI Дайджест:', '',
     settings?.bitrix_chat_id ? '✅ Чат подключён' : '❌ Чат не подключён',
     `📰 Активных источников: ${count ?? 0}`,
     `🔄 Автоотправка: ${settings?.auto_send_enabled !== false ? 'включена' : 'выключена'}`,
     `⏰ Время отправки: ${settings?.send_time ?? '09:00'}`,
-  ]
-
-  await sendBotMessage(userId, dialogId, lines.join('\n'))
+  ].join('\n'))
 }
 
 async function handleHelp(userId: string, dialogId: string) {
