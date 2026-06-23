@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
@@ -9,6 +9,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('code') && params.has('member_id')) {
+      window.location.href = `/api/bitrix/callback?${params.toString()}`
+    }
+  }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
