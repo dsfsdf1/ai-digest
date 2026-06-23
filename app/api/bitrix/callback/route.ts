@@ -9,9 +9,10 @@ export async function GET(req: NextRequest) {
     const user = await requireAuth()
     const { searchParams } = new URL(req.url)
     const code = searchParams.get('code')
-    const domain = searchParams.get('domain')
+    // For local apps domain comes from env; for cloud apps it's in the query param
+    const domain = searchParams.get('domain') ?? process.env.BITRIX_DOMAIN!
 
-    if (!code || !domain) {
+    if (!code) {
       return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/bitrix?error=no_code`)
     }
 

@@ -24,7 +24,8 @@
       "Bash(node scripts/create-user.mjs denis@company.ru Denis2024!)",
       "WebSearch",
       "Bash(curl -s --max-time 5 \"https://zsrf.ru/feed\")",
-      "Bash(curl -s --max-time 5 \"https://ancb.ru/rss.xml\")"
+      "Bash(curl -s --max-time 5 \"https://ancb.ru/rss.xml\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Authorization: Bearer nfp_3uK7uNQcm7U9MRQDB6eUiSa7nzs7bMBdee25' -H 'Content-Type: application/json' https://api.netlify.com/api/v1/accounts/lampdoor777/env?site_id=e3f88a52-c596-4135-b0a9-adeabf0176d1 -d '[{\"key\":\"BITRIX_DOMAIN\",\"values\":[{\"value\":\"bitrix.tandh.ru\",\"context\":\"all\"}],\"scopes\":[\"builds\",\"functions\",\"runtime\",\"post_processing\"]}]')"
     ]
   }
 }
