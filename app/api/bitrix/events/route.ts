@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+export async function GET() {
+  return NextResponse.json({ ok: true, status: 'events endpoint alive' })
+}
 import { db } from '@/lib/db/client'
 import { sendBotMessage } from '@/lib/adapters/bitrix24'
 import { runDigest } from '@/lib/digest'
@@ -7,12 +11,13 @@ export async function POST(req: NextRequest) {
   let body: Record<string, string> = {}
 
   try {
+    const text = await req.text()
     const ct = req.headers.get('content-type') ?? ''
     if (ct.includes('application/json')) {
-      body = await req.json()
+      body = JSON.parse(text)
     } else {
-      const fd = await req.formData()
-      fd.forEach((v, k) => { body[k] = String(v) })
+      // application/x-www-form-urlencoded (Bitrix24 default)
+      new URLSearchParams(text).forEach((v, k) => { body[k] = v })
     }
   } catch {
     return NextResponse.json({ ok: true })
