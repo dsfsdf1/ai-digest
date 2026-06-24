@@ -1,10 +1,41 @@
 import OpenAI from 'openai'
+import Groq from 'groq-sdk'
 import { Article } from '../types'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
-function getClient() {
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+export type AiProvider = 'openai' | 'groq' | 'gemini' | 'custom'
+
+interface CustomConfig {
+  baseUrl?: string
+  apiKey?: string
+  model?: string
+}
+
+function getClient(provider: AiProvider, apiKey?: string, custom?: CustomConfig): OpenAI {
+  if (provider === 'groq') {
+    return new Groq({ apiKey: apiKey || process.env.GROQ_API_KEY }) as unknown as OpenAI
+  }
+  if (provider === 'gemini') {
+    return new OpenAI({
+      apiKey: apiKey || process.env.GEMINI_API_KEY || '',
+      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+    })
+  }
+  if (provider === 'custom') {
+    return new OpenAI({
+      apiKey: custom?.apiKey || apiKey || 'ollama',
+      baseURL: custom?.baseUrl || 'http://localhost:11434/v1',
+    })
+  }
+  return new OpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY })
+}
+
+function getModel(provider: AiProvider, custom?: CustomConfig): string {
+  if (provider === 'groq') return 'llama-3.3-70b-versatile'
+  if (provider === 'gemini') return 'gemini-1.5-flash'
+  if (provider === 'custom') return custom?.model || 'llama3'
+  return 'gpt-4o-mini'
 }
 
 interface DigestResult {
@@ -22,15 +53,27 @@ interface CategoryItem {
 
 export async function buildDigest(
   articles: Article[],
-  maxItems: number
+  maxItems: number,
+  focusPrompt?: string,
+  provider: AiProvider = 'openai',
+  apiKey?: string,
+  custom?: CustomConfig
 ): Promise<DigestResult> {
-  const limited = articles.slice(0, 50)
+  const isGroq = provider === 'groq'
+  const limited = articles.slice(0, isGroq ? 40 : 150)
 
   const articlesText = limited
-    .map((a, i) => `[${i + 1}] ${a.category} | ${a.title}\n${a.description}\nURL: ${a.url}`)
+    .map((a, i) => {
+      const desc = isGroq ? (a.description?.slice(0, 80) ?? '') : (a.description ?? '')
+      return `[${i + 1}] ${a.category} | ${a.title}${desc ? '\n' + desc : ''}\n${a.url}`
+    })
     .join('\n\n')
 
-  const prompt = `Ты — редактор делового дайджеста для руководителей.
+  const focusBlock = focusPrompt?.trim()
+    ? `\nПрофиль читателя: ${focusPrompt.trim()}\nПодбирай и акцентируй новости исходя из этого профиля.\n`
+    : ''
+
+  const prompt = `Ты — редактор делового дайджеста для руководителей.${focusBlock}
 
 Вот список новостей за последние 24 часа:
 
@@ -61,14 +104,18 @@ ${articlesText}
 - Пиши кратко и по делу, без воды
 - Фокус на бизнес-значимость`
 
-  const response = await getClient().chat.completions.create({
-    model: 'gpt-4o-mini',
+  const supportsJsonMode = provider !== 'gemini' && provider !== 'custom'
+
+  const response = await getClient(provider, apiKey, custom).chat.completions.create({
+    model: getModel(provider, custom),
     messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
+    ...(supportsJsonMode ? { response_format: { type: 'json_object' } } : {}),
     temperature: 0.3,
   })
 
-  const content = response.choices[0].message.content ?? '{}'
+  let content = response.choices[0].message.content ?? '{}'
+  // Strip markdown code blocks if present (Gemini often wraps JSON in ```json ... ```)
+  content = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
   return JSON.parse(content) as DigestResult
 }
 

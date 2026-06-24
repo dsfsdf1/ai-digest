@@ -11,6 +11,8 @@ export interface Source {
   user_id: string
   title: string
   url: string
+  website_url: string
+  rss_url: string
   category: string
   enabled: boolean
   last_checked_at: string | null
@@ -67,7 +69,8 @@ export interface Article {
   title: string
   url: string
   description: string
-  publishedAt: string
+  publishedAt: string | null
   sourceTitle: string
+  sourceUrl?: string
   category: string
 }
