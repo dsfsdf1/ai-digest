@@ -71,7 +71,7 @@ export default function NewsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">Лента новостей</h2>
+          <h2 className="text-xl font-semibold text-slate-900" suppressHydrationWarning>Лента новостей</h2>
           <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-2">
             {`${articles.length} статей из ${sourcesCount} источников`}
             {isRefreshing && <span className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />}

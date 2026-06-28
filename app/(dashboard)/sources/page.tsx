@@ -5,6 +5,13 @@ import { Source } from '@/lib/types'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
+function isTelegram(url: string) {
+  return /t\.me|telegram\.me/i.test(url) || url.startsWith('@')
+}
+function isVk(url: string) {
+  return /vk\.com/i.test(url)
+}
+
 export default function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([])
   const [loading, setLoading] = useState(true)
@@ -14,6 +21,7 @@ export default function SourcesPage() {
   const [testing, setTesting] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; error?: string }>>({})
   const [testingAll, setTestingAll] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -26,12 +34,14 @@ export default function SourcesPage() {
   async function add(e: React.FormEvent) {
     e.preventDefault()
     setAddError('')
+    setSubmitting(true)
     const res = await fetch('/api/sources', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     })
     const data = await res.json()
+    setSubmitting(false)
     if (res.ok) {
       setForm({ title: '', url: '', rss_url: '', category: 'Общее' })
       setAdding(false)
@@ -151,14 +161,15 @@ export default function SourcesPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Сайт</label>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Сайт или Telegram-канал</label>
               <input
                 value={form.url}
                 onChange={(e) => setForm({ ...form, url: e.target.value })}
                 required
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="https://rbc.ru"
+                placeholder="https://rbc.ru, https://t.me/channel или https://vk.com/rbc"
               />
+              <p className="text-xs text-slate-400 mt-1">Поддерживаются сайты с RSS, Telegram-каналы и VK-сообщества</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">RSS-лента <span className="text-slate-400 font-normal">(необязательно)</span></label>
@@ -174,8 +185,9 @@ export default function SourcesPage() {
               <p className="text-xs text-red-500 font-medium">{addError}</p>
             )}
             <div className="flex gap-2 pt-1">
-              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                Добавить
+              <button type="submit" disabled={submitting} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-70 transition-colors">
+                {submitting && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                {submitting ? 'Добавляем...' : 'Добавить'}
               </button>
               <button type="button" onClick={() => setAdding(false)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">
                 Отмена
@@ -205,13 +217,29 @@ export default function SourcesPage() {
 
               {/* Links */}
               <div className="flex items-center gap-3 pl-4 mb-1.5">
-                <a href={displayUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate"
-                  title={displayUrl}
-                >
-                  🌐 {new URL(displayUrl).hostname}
-                </a>
-                {hasRss && (
+                {isTelegram(source.url) ? (
+                  <a href={displayUrl.replace('t.me/s/', 't.me/')} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-blue-400 hover:text-blue-600 hover:underline truncate"
+                    title={displayUrl}
+                  >
+                    ✈️ {displayUrl.match(/t\.me\/(?:s\/)?([^/?#]+)/i)?.[1] ?? displayUrl}
+                  </a>
+                ) : isVk(source.url) ? (
+                  <a href={displayUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline truncate"
+                    title={displayUrl}
+                  >
+                    VK {displayUrl.match(/vk\.com\/([^/?#]+)/i)?.[1] ?? displayUrl}
+                  </a>
+                ) : (
+                  <a href={displayUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate"
+                    title={displayUrl}
+                  >
+                    🌐 {(() => { try { return new URL(displayUrl).hostname } catch { return displayUrl } })()}
+                  </a>
+                )}
+                {hasRss && !isTelegram(source.url) && (
                   <a href={rssUrl} target="_blank" rel="noopener noreferrer"
                     className="text-xs text-orange-500 hover:text-orange-700 hover:underline flex-shrink-0"
                   >

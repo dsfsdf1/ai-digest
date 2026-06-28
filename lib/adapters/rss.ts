@@ -1,6 +1,8 @@
 import Parser from 'rss-parser'
 import { extract as extractFeed } from '@extractus/feed-extractor'
 import { Article, Source } from '../types'
+import { isTelegramSource, fetchTelegramPosts } from './telegram'
+import { isVkSource, fetchVkPosts } from './vk'
 
 const RSS_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
@@ -37,6 +39,12 @@ export async function fetchArticles(sources: Source[], since: Date): Promise<Art
 }
 
 async function fetchFromSource(source: Source, since: Date): Promise<Article[]> {
+  if (isTelegramSource(source.url)) {
+    return fetchTelegramPosts(source, since)
+  }
+  if (isVkSource(source.url)) {
+    return fetchVkPosts(source, since)
+  }
   const { isRss, text } = await fetchUrl(source.url)
   if (isRss) {
     return fetchFromRss(text, source, since)
