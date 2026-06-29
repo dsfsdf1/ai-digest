@@ -1,41 +1,3 @@
-// Known Russian news sites with their RSS feeds (for sites that block VPS IPs)
-const KNOWN_RSS: Record<string, string> = {
-  'rbc.ru': 'https://rssexport.rbc.ru/rbcnews/news/30/full.rss',
-  'www.rbc.ru': 'https://rssexport.rbc.ru/rbcnews/news/30/full.rss',
-  'kommersant.ru': 'https://www.kommersant.ru/RSS/news.xml',
-  'www.kommersant.ru': 'https://www.kommersant.ru/RSS/news.xml',
-  'vedomosti.ru': 'https://www.vedomosti.ru/rss/news',
-  'www.vedomosti.ru': 'https://www.vedomosti.ru/rss/news',
-  'iz.ru': 'https://iz.ru/xml/rss/all.xml',
-  'www.iz.ru': 'https://iz.ru/xml/rss/all.xml',
-  'tass.ru': 'https://tass.ru/rss/v2.xml',
-  'www.tass.ru': 'https://tass.ru/rss/v2.xml',
-  'interfax.ru': 'https://www.interfax.ru/rss.asp',
-  'www.interfax.ru': 'https://www.interfax.ru/rss.asp',
-  'ria.ru': 'https://ria.ru/export/rss2/archive/index.xml',
-  'www.ria.ru': 'https://ria.ru/export/rss2/archive/index.xml',
-  'fontanka.ru': 'https://www.fontanka.ru/fontanka.rss',
-  'www.fontanka.ru': 'https://www.fontanka.ru/fontanka.rss',
-  'novayagazeta.ru': 'https://novayagazeta.ru/rss/all.xml',
-  'www.novayagazeta.ru': 'https://novayagazeta.ru/rss/all.xml',
-  'meduza.io': 'https://meduza.io/rss/all',
-  'www.meduza.io': 'https://meduza.io/rss/all',
-  'forbes.ru': 'https://www.forbes.ru/newrss.xml',
-  'www.forbes.ru': 'https://www.forbes.ru/newrss.xml',
-  'habr.com': 'https://habr.com/ru/rss/news/all/',
-  'www.habr.com': 'https://habr.com/ru/rss/news/all/',
-  'cnews.ru': 'https://www.cnews.ru/inc/rss/news.xml',
-  'www.cnews.ru': 'https://www.cnews.ru/inc/rss/news.xml',
-  'comnews.ru': 'https://www.comnews.ru/rss.xml',
-  'www.comnews.ru': 'https://www.comnews.ru/rss.xml',
-  'sostav.ru': 'https://www.sostav.ru/rss',
-  'www.sostav.ru': 'https://www.sostav.ru/rss',
-  'vc.ru': 'https://vc.ru/rss/all',
-  'www.vc.ru': 'https://vc.ru/rss/all',
-  'dp.ru': 'https://www.dp.ru/rss/news/',
-  'www.dp.ru': 'https://www.dp.ru/rss/news/',
-}
-
 // Common RSS path patterns to try if auto-discovery fails
 const RSS_PATHS = [
   '/rss', '/feed', '/rss.xml', '/feed.xml', '/atom.xml', '/index.xml',
@@ -57,27 +19,19 @@ export async function discoverRss(inputUrl: string): Promise<DiscoverResult> {
     return { rssUrl: inputUrl }
   }
 
-  // 0. Check known sites table first (bypasses sites that block VPS IPs)
-  try {
-    const hostname = new URL(inputUrl.startsWith('http') ? inputUrl : 'https://' + inputUrl).hostname
-    const knownRss = KNOWN_RSS[hostname]
-    if (knownRss) return { rssUrl: knownRss }
-  } catch { /* ignore */ }
+  // Run all discovery methods in parallel, take first success
+  const result = await Promise.any([
+    findRssInHtml(base).then((r) => { if (!r) throw new Error('not found'); return r }),
+    findRssViaFeedly(base),
+    findRssViaPaths(base),
+  ]).catch(() => null)
 
-  // 1. Try to find RSS link in page HTML
-  const fromHtml = await findRssInHtml(base)
-  if (fromHtml) return fromHtml
-
-  // 2. Try common paths in parallel (race, first valid wins)
-  const candidates = RSS_PATHS.map((path) => base + path)
-  const found = await Promise.any(
-    candidates.map((url) => validateRss(url).then(() => url))
-  ).catch(() => null)
-  if (found) return { rssUrl: found }
+  if (result) return result
 
   throw new Error('RSS-лента не найдена. Попробуйте вставить прямую ссылку на RSS.')
 }
 
+// Method 1: parse <link rel="alternate" type="application/rss+xml"> from HTML
 async function findRssInHtml(baseUrl: string): Promise<DiscoverResult | null> {
   try {
     const res = await fetch(baseUrl, {
@@ -87,7 +41,6 @@ async function findRssInHtml(baseUrl: string): Promise<DiscoverResult | null> {
     if (!res.ok) return null
     const html = await res.text()
 
-    // Find <link rel="alternate" type="application/rss+xml" ...>
     const linkRe = /<link[^>]+type=["']application\/(rss|atom)\+xml["'][^>]*>/gi
     const hrefRe = /href=["']([^"']+)["']/i
     const titleRe = /title=["']([^"']+)["']/i
@@ -107,13 +60,55 @@ async function findRssInHtml(baseUrl: string): Promise<DiscoverResult | null> {
 
     if (candidates.length === 0) return null
 
-    // Prefer feeds without "comments" in the name
     const best = candidates.find((c) => !/comment/i.test(c.rssUrl)) ?? candidates[0]
     await validateRss(best.rssUrl)
     return best
   } catch {
     return null
   }
+}
+
+// Method 2: Feedly search API — knows RSS for most sites, works even if site blocks VPS IPs
+async function findRssViaFeedly(baseUrl: string): Promise<DiscoverResult> {
+  const hostname = new URL(baseUrl).hostname.replace(/^www\./, '')
+  const searchUrl = `https://cloud.feedly.com/v3/search/feeds?query=${encodeURIComponent(hostname)}&count=10`
+
+  const res = await fetch(searchUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(8000),
+  })
+  if (!res.ok) throw new Error(`Feedly HTTP ${res.status}`)
+  const json = await res.json()
+
+  const results: Array<{ feedId: string; title?: string; website?: string }> = json.results ?? []
+
+  for (const item of results) {
+    // feedId format: "feed/https://..."
+    const rssUrl = item.feedId?.replace(/^feed\//, '')
+    if (!rssUrl || !rssUrl.startsWith('http')) continue
+
+    // Prefer feeds from the same domain
+    try {
+      const feedHost = new URL(rssUrl).hostname.replace(/^www\./, '')
+      if (!feedHost.includes(hostname) && !hostname.includes(feedHost)) continue
+    } catch { continue }
+
+    try {
+      await validateRss(rssUrl)
+      return { rssUrl, title: item.title }
+    } catch { continue }
+  }
+
+  throw new Error('Feedly: no valid feed found')
+}
+
+// Method 3: try common RSS paths in parallel
+async function findRssViaPaths(base: string): Promise<DiscoverResult> {
+  const candidates = RSS_PATHS.map((path) => base + path)
+  const found = await Promise.any(
+    candidates.map((url) => validateRss(url).then(() => url))
+  )
+  return { rssUrl: found }
 }
 
 async function validateRss(url: string): Promise<void> {
