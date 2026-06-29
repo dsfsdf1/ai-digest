@@ -25,7 +25,7 @@ export default function SourcesPage() {
   const [testingAll, setTestingAll] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<EditForm>({ title: '', url: '', category: '' })
+  const [editForm, setEditForm] = useState<EditForm>({ title: '', url: '', rss_url: '', category: '' })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
