@@ -62,7 +62,7 @@ export async function fetchVkPosts(source: Source, since: Date): Promise<Article
       description,
       publishedAt: pubDate.toISOString(),
       sourceTitle: source.title,
-      sourceUrl: source.url,
+      sourceUrl: source.website_url || source.url,
       category: source.category,
     })
   }

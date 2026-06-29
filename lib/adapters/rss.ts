@@ -96,7 +96,7 @@ async function fetchFromRss(text: string, source: Source, since: Date): Promise<
       description: stripHtml(item.contentSnippet ?? item.content ?? item.summary ?? ''),
       publishedAt: pubDate?.toISOString() ?? null,
       sourceTitle: source.title,
-      sourceUrl: source.url,
+      sourceUrl: source.website_url || source.url,
       category: source.category,
     })
   }
@@ -124,7 +124,7 @@ async function scrapeWeb(source: Source, since: Date): Promise<Article[]> {
           description: stripHtml((entry.description as string) ?? ''),
           publishedAt: pubDate?.toISOString() ?? null,
           sourceTitle: source.title,
-          sourceUrl: source.url,
+          sourceUrl: source.website_url || source.url,
           category: source.category,
         })
       }
