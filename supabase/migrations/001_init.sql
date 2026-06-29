@@ -77,3 +77,24 @@ create table if not exists sessions (
   expires_at timestamptz not null,
   created_at timestamptz default now()
 );
+
+-- Integrations (Telegram, Bitrix24, MAX, etc.)
+create table if not exists integrations (
+  id text not null,
+  user_id uuid references users(id) on delete cascade,
+  enabled boolean default false,
+  settings jsonb default '{}',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  primary key (id, user_id)
+);
+
+-- AI provider settings in digest_settings
+alter table digest_settings
+  add column if not exists ai_provider text default 'openai',
+  add column if not exists openai_api_key text,
+  add column if not exists groq_api_key text,
+  add column if not exists gemini_api_key text,
+  add column if not exists custom_api_url text,
+  add column if not exists custom_api_key text,
+  add column if not exists custom_model text;
