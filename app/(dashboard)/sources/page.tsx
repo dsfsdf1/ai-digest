@@ -97,7 +97,7 @@ export default function SourcesPage() {
 
   function startEdit(source: Source) {
     setEditingId(source.id)
-    setEditForm({ title: source.title, url: source.url, rss_url: source.rss_url ?? '', category: source.category })
+    setEditForm({ title: source.title, url: source.website_url || source.url, rss_url: source.rss_url ?? '', category: source.category })
     setEditError('')
   }
 
