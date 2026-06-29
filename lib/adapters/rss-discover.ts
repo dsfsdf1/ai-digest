@@ -23,16 +23,12 @@ export async function discoverRss(inputUrl: string): Promise<DiscoverResult> {
   const fromHtml = await findRssInHtml(base)
   if (fromHtml) return fromHtml
 
-  // 2. Try common paths
-  for (const path of RSS_PATHS) {
-    const url = base + path
-    try {
-      await validateRss(url)
-      return { rssUrl: url }
-    } catch {
-      // try next
-    }
-  }
+  // 2. Try common paths in parallel (race, first valid wins)
+  const candidates = RSS_PATHS.map((path) => base + path)
+  const found = await Promise.any(
+    candidates.map((url) => validateRss(url).then(() => url))
+  ).catch(() => null)
+  if (found) return { rssUrl: found }
 
   throw new Error('RSS-лента не найдена. Попробуйте вставить прямую ссылку на RSS.')
 }
@@ -41,7 +37,7 @@ async function findRssInHtml(baseUrl: string): Promise<DiscoverResult | null> {
   try {
     const res = await fetch(baseUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) return null
     const html = await res.text()
@@ -78,7 +74,7 @@ async function findRssInHtml(baseUrl: string): Promise<DiscoverResult | null> {
 async function validateRss(url: string): Promise<void> {
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(5000),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const text = await res.text()
