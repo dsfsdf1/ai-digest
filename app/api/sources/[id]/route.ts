@@ -8,9 +8,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params
     const body = await req.json()
 
+    const update: Record<string, unknown> = { ...body, updated_at: new Date().toISOString() }
+    // If url is being updated, clear website_url so it doesn't shadow the new url in the UI
+    if (body.url) update.website_url = null
+
     const { data, error } = await db
       .from('sources')
-      .update({ ...body, updated_at: new Date().toISOString() })
+      .update(update)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()
