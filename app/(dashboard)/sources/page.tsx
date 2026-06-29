@@ -12,6 +12,8 @@ function isVk(url: string) {
   return /vk\.com/i.test(url)
 }
 
+interface EditForm { title: string; url: string; category: string }
+
 export default function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,6 +24,10 @@ export default function SourcesPage() {
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; error?: string }>>({})
   const [testingAll, setTestingAll] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<EditForm>({ title: '', url: '', category: '' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -87,6 +93,35 @@ export default function SourcesPage() {
     }
     setTestingAll(false)
     load()
+  }
+
+  function startEdit(source: Source) {
+    setEditingId(source.id)
+    setEditForm({ title: source.title, url: source.url, category: source.category })
+    setEditError('')
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditError('')
+  }
+
+  async function saveEdit(id: string) {
+    setEditSaving(true)
+    setEditError('')
+    const res = await fetch(`/api/sources/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: editForm.title, url: editForm.url, category: editForm.category }),
+    })
+    setEditSaving(false)
+    if (res.ok) {
+      setEditingId(null)
+      load()
+    } else {
+      const data = await res.json()
+      setEditError(data.error ?? 'Ошибка сохранения')
+    }
   }
 
   if (loading) return (
@@ -205,88 +240,144 @@ export default function SourcesPage() {
           const displayUrl = source.website_url || source.url
           const rssUrl = source.rss_url || (!source.website_url ? source.url : '')
           const hasRss = !!rssUrl
+          const isEditing = editingId === source.id
 
           return (
             <div key={source.id} className={`bg-white border rounded-xl p-4 shadow-sm transition-all ${hasError ? 'border-red-100' : 'border-slate-200'}`}>
-              {/* Title row */}
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                <span className="font-medium text-sm text-slate-900 flex-1 min-w-0 truncate">{source.title}</span>
-                <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full flex-shrink-0">{source.category}</span>
-              </div>
+              {isEditing ? (
+                /* Edit form */
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Редактирование</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Название</label>
+                      <input
+                        value={editForm.title}
+                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Категория</label>
+                      <input
+                        value={editForm.category}
+                        onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Ссылка</label>
+                    <input
+                      value={editForm.url}
+                      onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  {editError && <p className="text-xs text-red-500">{editError}</p>}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => saveEdit(source.id)}
+                      disabled={editSaving}
+                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-70 transition-colors"
+                    >
+                      {editSaving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                      {editSaving ? 'Сохраняем...' : 'Сохранить'}
+                    </button>
+                    <button onClick={cancelEdit} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Title row */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${source.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    <span className="font-medium text-sm text-slate-900 flex-1 min-w-0 truncate">{source.title}</span>
+                    <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full flex-shrink-0">{source.category}</span>
+                  </div>
 
-              {/* Links */}
-              <div className="flex items-center gap-3 pl-4 mb-1.5">
-                {isTelegram(source.url) ? (
-                  <a href={displayUrl.replace('t.me/s/', 't.me/')} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-600 hover:underline truncate"
-                    title={displayUrl}
-                  >
-                    ✈️ {displayUrl.match(/t\.me\/(?:s\/)?([^/?#]+)/i)?.[1] ?? displayUrl}
-                  </a>
-                ) : isVk(source.url) ? (
-                  <a href={displayUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline truncate"
-                    title={displayUrl}
-                  >
-                    VK {displayUrl.match(/vk\.com\/([^/?#]+)/i)?.[1] ?? displayUrl}
-                  </a>
-                ) : (
-                  <a href={displayUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate"
-                    title={displayUrl}
-                  >
-                    🌐 {(() => { try { return new URL(displayUrl).hostname } catch { return displayUrl } })()}
-                  </a>
-                )}
-                {hasRss && !isTelegram(source.url) && (
-                  <a href={rssUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-orange-500 hover:text-orange-700 hover:underline flex-shrink-0"
-                  >
-                    RSS
-                  </a>
-                )}
-              </div>
+                  {/* Links */}
+                  <div className="flex items-center gap-3 pl-4 mb-1.5">
+                    {isTelegram(source.url) ? (
+                      <a href={displayUrl.replace('t.me/s/', 't.me/')} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:text-blue-600 hover:underline truncate"
+                        title={displayUrl}
+                      >
+                        ✈️ {displayUrl.match(/t\.me\/(?:s\/)?([^/?#]+)/i)?.[1] ?? displayUrl}
+                      </a>
+                    ) : isVk(source.url) ? (
+                      <a href={displayUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline truncate"
+                        title={displayUrl}
+                      >
+                        VK {displayUrl.match(/vk\.com\/([^/?#]+)/i)?.[1] ?? displayUrl}
+                      </a>
+                    ) : (
+                      <a href={displayUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate"
+                        title={displayUrl}
+                      >
+                        🌐 {(() => { try { return new URL(displayUrl).hostname } catch { return displayUrl } })()}
+                      </a>
+                    )}
+                    {hasRss && !isTelegram(source.url) && (
+                      <a href={rssUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-orange-500 hover:text-orange-700 hover:underline flex-shrink-0"
+                      >
+                        RSS
+                      </a>
+                    )}
+                  </div>
 
-              {/* Status */}
-              <div className="pl-4 mb-3">
-                {testResult ? (
-                  <p className={`text-xs font-medium ${testResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {testResult.ok ? '✓ Источник работает' : `✗ ${testResult.error}`}
-                  </p>
-                ) : hasError ? (
-                  <p className="text-xs text-red-400">⚠ {source.last_error}</p>
-                ) : source.last_checked_at ? (
-                  <p className="text-xs text-slate-400">
-                    Проверен {format(new Date(source.last_checked_at), 'd MMM, HH:mm', { locale: ru })}
-                  </p>
-                ) : <p className="text-xs text-slate-300">Не проверялся</p>}
-              </div>
+                  {/* Status */}
+                  <div className="pl-4 mb-3">
+                    {testResult ? (
+                      <p className={`text-xs font-medium ${testResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {testResult.ok ? '✓ Источник работает' : `✗ ${testResult.error}`}
+                      </p>
+                    ) : hasError ? (
+                      <p className="text-xs text-red-400">⚠ {source.last_error}</p>
+                    ) : source.last_checked_at ? (
+                      <p className="text-xs text-slate-400">
+                        Проверен {format(new Date(source.last_checked_at), 'd MMM, HH:mm', { locale: ru })}
+                      </p>
+                    ) : <p className="text-xs text-slate-300">Не проверялся</p>}
+                  </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-1 pl-4 border-t border-slate-100 pt-3">
-                <button
-                  onClick={() => test(source)}
-                  disabled={testing === source.id}
-                  className="text-xs text-slate-500 hover:text-slate-700 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-50 transition-colors font-medium"
-                >
-                  {testing === source.id ? '...' : 'Проверить'}
-                </button>
-                <button
-                  onClick={() => toggle(source)}
-                  className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors font-medium ${
-                    source.enabled ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
-                  }`}
-                >
-                  {source.enabled ? 'Выключить' : 'Включить'}
-                </button>
-                <button
-                  onClick={() => remove(source.id)}
-                  className="text-xs text-red-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors font-medium ml-auto"
-                >
-                  Удалить
-                </button>
-              </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 pl-4 border-t border-slate-100 pt-3">
+                    <button
+                      onClick={() => test(source)}
+                      disabled={testing === source.id}
+                      className="text-xs text-slate-500 hover:text-slate-700 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-50 transition-colors font-medium"
+                    >
+                      {testing === source.id ? '...' : 'Проверить'}
+                    </button>
+                    <button
+                      onClick={() => toggle(source)}
+                      className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors font-medium ${
+                        source.enabled ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                      }`}
+                    >
+                      {source.enabled ? 'Выключить' : 'Включить'}
+                    </button>
+                    <button
+                      onClick={() => startEdit(source)}
+                      className="text-xs text-blue-500 hover:text-blue-700 px-2.5 py-1.5 rounded-lg hover:bg-blue-50 transition-colors font-medium"
+                    >
+                      Изменить
+                    </button>
+                    <button
+                      onClick={() => remove(source.id)}
+                      className="text-xs text-red-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors font-medium ml-auto"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )
         })}
