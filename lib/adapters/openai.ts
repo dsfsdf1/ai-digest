@@ -1,5 +1,4 @@
 import OpenAI from 'openai'
-import Groq from 'groq-sdk'
 import { Article } from '../types'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
@@ -14,7 +13,11 @@ interface CustomConfig {
 
 function getClient(provider: AiProvider, apiKey?: string, custom?: CustomConfig): OpenAI {
   if (provider === 'groq') {
-    return new Groq({ apiKey: apiKey || process.env.GROQ_API_KEY }) as unknown as OpenAI
+    const groqBase = process.env.GROQ_PROXY_URL || 'https://api.groq.com/openai/v1'
+    return new OpenAI({
+      apiKey: apiKey || process.env.GROQ_API_KEY || '',
+      baseURL: groqBase,
+    })
   }
   if (provider === 'gemini') {
     return new OpenAI({
