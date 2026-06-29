@@ -41,8 +41,12 @@ export async function POST(req: NextRequest) {
         const discovered = await discoverRss(websiteUrl)
         rssUrl = discovered.rssUrl
         if (!title && discovered.title) title = discovered.title
-      } catch {
-        // No RSS found — will scrape the page directly
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : ''
+        if (msg !== 'no-rss') {
+          // Real error during discovery — still continue, fall back to scraping
+        }
+        // 'no-rss' = section URL without RSS, will scrape page directly
       }
     }
 

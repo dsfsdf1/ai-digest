@@ -19,16 +19,25 @@ export async function discoverRss(inputUrl: string): Promise<DiscoverResult> {
     return { rssUrl: inputUrl }
   }
 
-  // Run all discovery methods in parallel, take first success
-  const result = await Promise.any([
-    findRssInHtml(base).then((r) => { if (!r) throw new Error('not found'); return r }),
-    findRssViaFeedly(base),
-    findRssViaPaths(base),
-  ]).catch(() => null)
+  const isHomepage = isSectionUrl(inputUrl) === false
 
-  if (result) return result
+  if (isHomepage) {
+    // Homepage: try all methods in parallel — HTML, Feedly, common paths
+    const result = await Promise.any([
+      findRssInHtml(base).then((r) => { if (!r) throw new Error('not found'); return r }),
+      findRssViaFeedly(base),
+      findRssViaPaths(base),
+    ]).catch(() => null)
+    if (result) return result
+  } else {
+    // Section/tag/category URL: only look for RSS in that specific page HTML
+    // Do NOT use Feedly (returns global RSS) or common paths (belong to homepage)
+    const result = await findRssInHtml(inputUrl)
+    if (result) return result
+    // No RSS found — caller will scrape this URL directly (section page scraping)
+  }
 
-  throw new Error('RSS-лента не найдена. Попробуйте вставить прямую ссылку на RSS.')
+  throw new Error('no-rss')
 }
 
 // Method 1: parse <link rel="alternate" type="application/rss+xml"> from HTML
@@ -135,4 +144,15 @@ function normalizeUrl(url: string): string {
 
 function isLikelyRss(url: string): boolean {
   return /\.(rss|xml|atom)(\?|$)/i.test(url) || /\/(rss|feed|atom)(\/|$|\?)/i.test(url)
+}
+
+// Returns true if this is a section/tag/category page, not just the homepage
+function isSectionUrl(url: string): boolean {
+  try {
+    const u = new URL(url.startsWith('http') ? url : 'https://' + url)
+    const path = u.pathname.replace(/\/$/, '')
+    return path.length > 0
+  } catch {
+    return false
+  }
 }
