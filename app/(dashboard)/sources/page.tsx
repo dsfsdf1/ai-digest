@@ -12,7 +12,7 @@ function isVk(url: string) {
   return /vk\.com/i.test(url)
 }
 
-interface EditForm { title: string; url: string; category: string }
+interface EditForm { title: string; url: string; rss_url: string; category: string }
 
 export default function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([])
@@ -97,7 +97,7 @@ export default function SourcesPage() {
 
   function startEdit(source: Source) {
     setEditingId(source.id)
-    setEditForm({ title: source.title, url: source.url, category: source.category })
+    setEditForm({ title: source.title, url: source.url, rss_url: source.rss_url ?? '', category: source.category })
     setEditError('')
   }
 
@@ -112,7 +112,7 @@ export default function SourcesPage() {
     const res = await fetch(`/api/sources/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: editForm.title, url: editForm.url, category: editForm.category }),
+      body: JSON.stringify({ title: editForm.title, url: editForm.url, rss_url: editForm.rss_url || null, category: editForm.category }),
     })
     setEditSaving(false)
     if (res.ok) {
@@ -267,12 +267,24 @@ export default function SourcesPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Ссылка</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Сайт или Telegram-канал</label>
                     <input
                       value={editForm.url}
                       onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://rbc.ru, https://t.me/channel или https://vk.com/rbc"
                     />
+                    <p className="text-xs text-slate-400 mt-1">Поддерживаются сайты с RSS, Telegram-каналы и VK-сообщества</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">RSS-лента <span className="text-slate-400 font-normal">(необязательно)</span></label>
+                    <input
+                      value={editForm.rss_url}
+                      onChange={(e) => setEditForm({ ...editForm, rss_url: e.target.value })}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://rbc.ru/rss/news.rss"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Если не знаете — оставьте пустым, попробуем найти автоматически</p>
                   </div>
                   {editError && <p className="text-xs text-red-500">{editError}</p>}
                   <div className="flex gap-2 pt-1">
