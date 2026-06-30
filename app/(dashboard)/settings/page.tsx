@@ -226,7 +226,11 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-700">Автоотправка</p>
-              <p className="text-xs text-slate-400 mt-0.5">Ежедневно в {settings.send_time ?? '09:00'}</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {(settings.digest_times ?? ['09:00']).length > 1
+                  ? `Ежедневно в ${(settings.digest_times ?? ['09:00']).join(', ')}`
+                  : `Ежедневно в ${(settings.digest_times ?? ['09:00'])[0]}`}
+              </p>
             </div>
             <button
               type="button"
