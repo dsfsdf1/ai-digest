@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
     if (!settings?.length) return NextResponse.json({ ok: true, ran: 0 })
 
     const now = new Date()
-    const dueUserIds: string[] = []
+    // user_id -> matched local slot ("HH:MM"), used for per-slot idempotency
+    const due = new Map<string, string>()
 
     for (const s of settings) {
       const times: string[] = (Array.isArray(s.digest_times) && s.digest_times.length)
@@ -47,19 +48,40 @@ export async function GET(req: NextRequest) {
         return diff <= MATCH_WINDOW_MIN
       })
 
-      if (matchedTime) dueUserIds.push(s.user_id)
+      if (matchedTime) due.set(s.user_id, matchedTime)
     }
 
-    if (!dueUserIds.length) return NextResponse.json({ ok: true, ran: 0 })
+    if (!due.size) return NextResponse.json({ ok: true, ran: 0 })
 
-    // Idempotency: drop users who already got an auto digest in the last 10 minutes
-    const recentRows = await rawQuery<{ user_id: string }>(
-      `SELECT DISTINCT user_id FROM digest_runs
-       WHERE user_id = ANY($1) AND run_type = 'auto' AND created_at > now() - interval '10 minutes'`,
+    const dueUserIds = [...due.keys()]
+
+    // Idempotency: skip a user only if THIS SAME slot already sent recently —
+    // changing the schedule (e.g. 01:12 -> 01:20 a few minutes later) must not be blocked.
+    const recentRows = await rawQuery<{ user_id: string; created_at: string }>(
+      `SELECT user_id, created_at FROM digest_runs
+       WHERE user_id = ANY($1) AND run_type = 'auto' AND created_at > now() - interval '20 minutes'`,
       [dueUserIds]
     )
-    const recentSet = new Set(recentRows.map((r) => r.user_id))
-    const toRun = dueUserIds.filter((id) => !recentSet.has(id))
+
+    const blocked = new Set<string>()
+    for (const row of recentRows) {
+      const slot = due.get(row.user_id)
+      if (!slot) continue
+      const [h, m] = slot.split(':').map(Number)
+      const sentAt = new Date(row.created_at)
+      const tzOffset = getTzOffset(
+        settings.find((s) => s.user_id === row.user_id)?.timezone ?? 'Europe/Moscow'
+      )
+      const sentLocalMinutes = (sentAt.getUTCHours() * 60 + sentAt.getUTCMinutes() + tzOffset * 60 + 1440) % 1440
+      const targetMinutes = h * 60 + m
+      const diff = Math.min(
+        Math.abs(sentLocalMinutes - targetMinutes),
+        1440 - Math.abs(sentLocalMinutes - targetMinutes)
+      )
+      if (diff <= MATCH_WINDOW_MIN) blocked.add(row.user_id)
+    }
+
+    const toRun = dueUserIds.filter((id) => !blocked.has(id))
 
     let ran = 0
     for (let i = 0; i < toRun.length; i += CONCURRENCY) {
