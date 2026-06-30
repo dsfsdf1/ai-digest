@@ -30,12 +30,13 @@ export async function PATCH(req: NextRequest) {
     const user = await requireAuth()
     const body = await req.json()
 
-    const { data } = await db
+    const { data, error } = await db
       .from('digest_settings')
       .upsert({ ...body, user_id: user.id, updated_at: new Date().toISOString() })
       .select()
       .single()
 
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json(data)
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

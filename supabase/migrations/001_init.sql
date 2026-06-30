@@ -91,6 +91,7 @@ create table if not exists integrations (
 
 -- AI provider settings in digest_settings
 alter table digest_settings
+  add column if not exists digest_times jsonb default '["09:00"]',
   add column if not exists ai_provider text default 'openai',
   add column if not exists openai_api_key text,
   add column if not exists groq_api_key text,
