@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, rawQuery } from '@/lib/db/client'
 import { runDigest } from '@/lib/digest'
 
-const MATCH_WINDOW_MIN = 7 // cron runs every 15 min — half window on each side
+const MATCH_WINDOW_MIN = 2 // cron runs every 1 min — small window to catch the exact minute
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get('x-cron-secret') ?? req.nextUrl.searchParams.get('secret')
@@ -41,9 +41,9 @@ export async function GET(req: NextRequest) {
 
     if (!matchedTime) continue
 
-    // Idempotency: skip if a digest already ran for this user in the last hour
+    // Idempotency: skip if a digest already ran for this user in the last 10 minutes
     const recent = await rawQuery<{ id: string }>(
-      `SELECT id FROM digest_runs WHERE user_id = $1 AND run_type = 'auto' AND created_at > now() - interval '1 hour' LIMIT 1`,
+      `SELECT id FROM digest_runs WHERE user_id = $1 AND run_type = 'auto' AND created_at > now() - interval '10 minutes' LIMIT 1`,
       [s.user_id]
     )
     if (recent.length) continue
