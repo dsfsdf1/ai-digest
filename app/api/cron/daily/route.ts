@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       const [h, m] = slot.split(':').map(Number)
       const sentAt = new Date(row.created_at)
       const tzOffset = getTzOffset(
-        settings.find((s) => s.user_id === row.user_id)?.timezone ?? 'Europe/Moscow'
+        settings.find((s: { user_id: string }) => s.user_id === row.user_id)?.timezone ?? 'Europe/Moscow'
       )
       const sentLocalMinutes = (sentAt.getUTCHours() * 60 + sentAt.getUTCMinutes() + tzOffset * 60 + 1440) % 1440
       const targetMinutes = h * 60 + m
