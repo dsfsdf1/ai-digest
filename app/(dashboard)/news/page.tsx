@@ -91,17 +91,22 @@ export default function NewsPage() {
             <span className={loading ? 'animate-spin inline-block' : ''}>↻</span>
             <span className="hidden sm:inline">Обновить</span>
           </button>
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="flex-1 sm:flex-none border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={0.042}>За час</option>
-            <option value={0.25}>За 6 часов</option>
-            <option value={0.5}>За 12 часов</option>
-            <option value={1}>За сутки</option>
-            <option value={3}>За 3 дня</option>
-          </select>
+          <div className="relative flex-1 sm:flex-none">
+            <select
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+              className="appearance-none w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={0.042}>За час</option>
+              <option value={0.25}>За 6 часов</option>
+              <option value={0.5}>За 12 часов</option>
+              <option value={1}>За сутки</option>
+              <option value={3}>За 3 дня</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -115,18 +120,23 @@ export default function NewsPage() {
             className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {/* Source filter */}
-          <select
-            value={activeSource}
-            onChange={(e) => setActiveSource(e.target.value)}
-            className="border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Все источники</option>
-            {sources.slice(1).map((src) => (
-              <option key={src} value={src}>
-                {src} ({articles.filter((a) => a.sourceTitle === src).length})
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={activeSource}
+              onChange={(e) => setActiveSource(e.target.value)}
+              className="appearance-none border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Все источники</option>
+              {sources.slice(1).map((src) => (
+                <option key={src} value={src}>
+                  {src} ({articles.filter((a) => a.sourceTitle === src).length})
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
           {/* Category filter — only if there are multiple categories */}
           {categories.length > 2 && (
             <div className="flex gap-2 flex-wrap">

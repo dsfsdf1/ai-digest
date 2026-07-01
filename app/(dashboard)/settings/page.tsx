@@ -84,15 +84,20 @@ export default function SettingsPage() {
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Часовой пояс</label>
-            <select
-              value={settings.timezone ?? 'Europe/Moscow'}
-              onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-              className="w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {TIMEZONES.map((tz) => (
-                <option key={tz.value} value={tz.value}>{tz.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={settings.timezone ?? 'Europe/Moscow'}
+                onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
+                className="appearance-none w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                {TIMEZONES.map((tz) => (
+                  <option key={tz.value} value={tz.value}>{tz.label}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
           </div>
 
           <div>
