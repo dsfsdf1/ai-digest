@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     const since = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000)
     const articles = await fetchArticles(sources as Source[], since)
 
+    const seen = new Set<string>()
     const rows = articles
       .filter((a) => a.url && a.title)
       .map((a) => {
@@ -45,7 +46,13 @@ export async function GET(req: NextRequest) {
           category: a.category ?? null,
         }
       })
-      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .filter((r): r is NonNullable<typeof r> => {
+        if (r === null) return false
+        const key = `${r.user_id}::${r.url}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
 
     let saved = 0
     // Batch upsert via raw SQL — ON CONFLICT (user_id, url) DO NOTHING
