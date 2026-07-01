@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { db } from '@/lib/db/client'
+import { db, rawQuery } from '@/lib/db/client'
 import { fetchArticles } from '@/lib/adapters/rss'
 import { Source } from '@/lib/types'
 
@@ -12,16 +12,21 @@ export async function GET(req: NextRequest) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
     // Try reading from cached articles table first
-    const { data: cached, error } = await db
-      .from('articles')
-      .select('title, url, description, published_at, source_title, source_url, category')
-      .eq('user_id', user.id)
-      .or(`published_at.gte.${since.toISOString()},published_at.is.null`)
-      .gte('fetched_at', since.toISOString())
-      .order('published_at', { ascending: false, nullsFirst: false })
-      .limit(1000)
+    const cached = await rawQuery<{
+      title: string; url: string; description: string | null
+      published_at: string | null; source_title: string; source_url: string | null; category: string | null
+    }>(
+      `SELECT title, url, description, published_at, source_title, source_url, category
+       FROM articles
+       WHERE user_id = $1
+         AND fetched_at >= $2
+         AND (published_at IS NULL OR published_at >= $2)
+       ORDER BY published_at DESC NULLS LAST
+       LIMIT 1000`,
+      [user.id, since.toISOString()]
+    )
 
-    if (!error && cached && cached.length > 0) {
+    if (cached && cached.length > 0) {
       const articles = cached.map((a) => ({
         title: a.title,
         url: a.url,
