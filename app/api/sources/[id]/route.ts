@@ -8,9 +8,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params
     const body = await req.json()
 
-    const update: Record<string, unknown> = { ...body, updated_at: new Date().toISOString() }
-    // If url is being updated, clear website_url so it doesn't shadow the new url in the UI
-    if (body.url) update.website_url = null
+    // body.url = website/display URL from the edit form
+    // body.rss_url = RSS feed URL (if provided)
+    // We store the website URL in website_url, and the RSS (or website if no RSS) in url
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (body.title !== undefined) update.title = body.title
+    if (body.category !== undefined) update.category = body.category
+    if (body.url !== undefined) {
+      // rss_url takes priority as the fetch URL; website url goes to website_url
+      if (body.rss_url) {
+        update.url = body.rss_url
+        update.website_url = body.url
+        update.rss_url = body.rss_url
+      } else {
+        update.url = body.url
+        update.website_url = null
+        update.rss_url = null
+      }
+    } else if (body.rss_url !== undefined) {
+      update.rss_url = body.rss_url || null
+      if (body.rss_url) update.url = body.rss_url
+    }
 
     const { data, error } = await db
       .from('sources')

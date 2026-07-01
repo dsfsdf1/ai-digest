@@ -39,13 +39,14 @@ export async function fetchArticles(sources: Source[], since: Date): Promise<Art
 }
 
 async function fetchFromSource(source: Source, since: Date): Promise<Article[]> {
-  if (isTelegramSource(source.url)) {
+  const fetchUrl_ = source.rss_url || source.url
+  if (isTelegramSource(fetchUrl_)) {
     return fetchTelegramPosts(source, since)
   }
-  if (isVkSource(source.url)) {
+  if (isVkSource(fetchUrl_)) {
     return fetchVkPosts(source, since)
   }
-  const { isRss, text } = await fetchUrl(source.url)
+  const { isRss, text } = await fetchUrl(fetchUrl_)
   if (isRss) {
     return fetchFromRss(text, source, since)
   } else {
