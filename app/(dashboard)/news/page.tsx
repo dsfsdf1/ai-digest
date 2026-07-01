@@ -103,7 +103,7 @@ export default function NewsPage() {
               <option value={1}>За сутки</option>
               <option value={3}>За 3 дня</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
               <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
             </div>
           </div>
@@ -120,11 +120,11 @@ export default function NewsPage() {
             className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {/* Source filter */}
-          <div className="relative">
+          <div className="relative w-full">
             <select
               value={activeSource}
               onChange={(e) => setActiveSource(e.target.value)}
-              className="appearance-none border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="appearance-none w-full border border-slate-200 rounded-lg pl-3 pr-10 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Все источники</option>
               {sources.slice(1).map((src) => (
@@ -133,7 +133,7 @@ export default function NewsPage() {
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
               <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
             </div>
           </div>

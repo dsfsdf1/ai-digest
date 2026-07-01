@@ -94,7 +94,7 @@ export default function SettingsPage() {
                   <option key={tz.value} value={tz.value}>{tz.label}</option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
                 <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
               </div>
             </div>
