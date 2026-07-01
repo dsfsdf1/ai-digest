@@ -58,13 +58,15 @@ export default function NewsPage() {
     const matchCat = activeCategory === 'Все' || a.category === activeCategory
     const matchSource = !activeSource || a.sourceTitle === activeSource
     const matchSearch = !q
-      || a.title.toLowerCase().includes(q)
-      || a.sourceTitle.toLowerCase().includes(q)
+      || (a.title ?? '').toLowerCase().includes(q)
+      || (a.sourceTitle ?? '').toLowerCase().includes(q)
       || (a.sourceUrl ?? '').toLowerCase().includes(q)
-      || a.category.toLowerCase().includes(q)
-      || a.description.toLowerCase().includes(q)
+      || (a.category ?? '').toLowerCase().includes(q)
+      || (a.description ?? '').toLowerCase().includes(q)
     return matchCat && matchSource && matchSearch
   })
+
+  const sources = ['Все', ...Array.from(new Set(articles.map((a) => a.sourceTitle).filter(Boolean)))]
 
   return (
     <div className="max-w-3xl w-full">
@@ -100,7 +102,7 @@ export default function NewsPage() {
         </div>
       </div>
 
-      {/* Search + categories */}
+      {/* Search + filters */}
       {!loading && articles.length > 0 && (
         <div className="mb-4 space-y-3">
           <input
@@ -109,24 +111,48 @@ export default function NewsPage() {
             placeholder="Поиск по заголовку, источнику, категории..."
             className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <div className="flex gap-2 flex-wrap">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  activeCategory === cat
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {cat}
-                {cat === 'Все'
-                  ? ` (${articles.length})`
-                  : ` (${articles.filter((a) => a.category === cat).length})`}
-              </button>
-            ))}
-          </div>
+          {/* Source filter */}
+          {sources.length > 2 && (
+            <div className="flex gap-2 flex-wrap">
+              {sources.map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setActiveSource(src === 'Все' ? '' : (activeSource === src ? '' : src))}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    (src === 'Все' && !activeSource) || activeSource === src
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {src}
+                  {src === 'Все'
+                    ? ` (${articles.length})`
+                    : ` (${articles.filter((a) => a.sourceTitle === src).length})`}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Category filter */}
+          {categories.length > 2 && (
+            <div className="flex gap-2 flex-wrap">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    activeCategory === cat
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                  {cat === 'Все'
+                    ? ` (${articles.length})`
+                    : ` (${articles.filter((a) => a.category === cat).length})`}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -151,17 +177,6 @@ export default function NewsPage() {
         </div>
       )}
 
-      {/* Active source filter */}
-      {activeSource && (
-        <div className="mb-3 flex items-center gap-2">
-          <span className="text-sm text-slate-500">Источник:</span>
-          <span className="flex items-center gap-1.5 bg-slate-800 text-white text-xs px-3 py-1.5 rounded-full font-medium">
-            {activeSource}
-            <button onClick={() => setActiveSource('')} className="hover:opacity-70 ml-0.5">✕</button>
-          </span>
-          <span className="text-xs text-slate-400">{filtered.length} статей</span>
-        </div>
-      )}
 
       {/* Articles */}
       {filtered.length > 0 && (
@@ -200,9 +215,11 @@ export default function NewsPage() {
                     : '—'}
                 </span>
               </div>
-              <span className="text-xs bg-blue-50 text-blue-500 px-2 py-1 rounded-md inline-block mb-2">
-                {article.category}
-              </span>
+              {article.category && (
+                <span className="text-xs bg-blue-50 text-blue-500 px-2 py-1 rounded-md inline-block mb-2">
+                  {article.category}
+                </span>
+              )}
               <p className="text-sm font-medium text-slate-900 group-hover:text-blue-600 transition-colors leading-snug">
                 {article.title}
               </p>
