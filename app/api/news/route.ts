@@ -86,7 +86,6 @@ export async function GET(req: NextRequest) {
       `SELECT title, url, description, published_at, source_title, source_url, category
        FROM articles
        WHERE user_id = $1
-         AND fetched_at >= $2
          AND (published_at IS NULL OR published_at >= $2)
        ORDER BY published_at DESC NULLS LAST
        LIMIT 1000`,
