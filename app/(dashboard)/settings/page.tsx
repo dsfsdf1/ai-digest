@@ -87,7 +87,7 @@ export default function SettingsPage() {
             <select
               value={settings.timezone ?? 'Europe/Moscow'}
               onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {TIMEZONES.map((tz) => (
                 <option key={tz.value} value={tz.value}>{tz.label}</option>

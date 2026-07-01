@@ -94,7 +94,7 @@ export default function NewsPage() {
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="flex-1 sm:flex-none border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 sm:flex-none border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={0.042}>За час</option>
             <option value={0.25}>За 6 часов</option>
@@ -118,7 +118,7 @@ export default function NewsPage() {
           <select
             value={activeSource}
             onChange={(e) => setActiveSource(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Все источники</option>
             {sources.slice(1).map((src) => (
