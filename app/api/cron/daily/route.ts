@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, rawQuery } from '@/lib/db/client'
 import { runDigest } from '@/lib/digest'
 
-const MATCH_WINDOW_MIN = 2 // cron runs every 1 min — small window to catch the exact minute
+const MATCH_WINDOW_MIN = 1 // cron runs every 1 min — ±1 min catches the exact minute + 1 retry
 const CONCURRENCY = 4 // matches DB pool size (max: 5), keeps the single-core VDS responsive
 let running = false // prevents overlapping cron invocations if a run takes longer than 1 minute
 
