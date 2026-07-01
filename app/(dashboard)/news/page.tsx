@@ -51,7 +51,7 @@ export default function NewsPage() {
 
   const isRefreshing = loading && articles.length > 0
 
-  const categories = ['Все', ...Array.from(new Set(articles.map((a) => a.category)))]
+  const categories = ['Все', ...Array.from(new Set(articles.map((a) => a.category).filter(Boolean)))]
 
   const q = search.toLowerCase()
   const filtered = articles.filter((a) => {
