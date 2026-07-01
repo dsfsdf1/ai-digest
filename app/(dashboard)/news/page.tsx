@@ -96,7 +96,6 @@ export default function NewsPage() {
             <option value={0.5}>За 12 часов</option>
             <option value={1}>За сутки</option>
             <option value={3}>За 3 дня</option>
-            <option value={7}>За неделю</option>
           </select>
         </div>
       </div>
