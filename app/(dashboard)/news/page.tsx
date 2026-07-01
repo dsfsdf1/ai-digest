@@ -37,8 +37,11 @@ export default function NewsPage() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [days])
 
-  async function load(d: number) {
+  async function load(d: number, refresh = false) {
     setLoading(true)
+    if (refresh) {
+      await fetch('/api/news/refresh', { method: 'POST' })
+    }
     const res = await fetch(`/api/news?days=${d}`, { cache: 'no-store' })
     if (res.ok) {
       const data = await res.json()
@@ -81,7 +84,7 @@ export default function NewsPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => load(days)}
+            onClick={() => load(days, true)}
             disabled={loading}
             className="flex items-center gap-1.5 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
           >
