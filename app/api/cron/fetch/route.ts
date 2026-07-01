@@ -25,19 +25,13 @@ export async function GET(req: NextRequest) {
 
     if (!sources?.length) return NextResponse.json({ ok: true, saved: 0 })
 
-    // Fetch articles from all sources (last 7 days)
     const since = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000)
     const articles = await fetchArticles(sources as Source[], since)
-
-    // Group by user_id from source
-    const bySource = new Map<string, { userId: string; sourceId: string }>(
-      sources.map((s: Source) => [s.id, { userId: s.user_id, sourceId: s.id }])
-    )
 
     const rows = articles
       .filter((a) => a.url && a.title)
       .map((a) => {
-        const src = sources.find((s: Source) => s.title === a.sourceTitle && s.user_id)
+        const src = (sources as Source[]).find((s) => s.title === a.sourceTitle)
         if (!src) return null
         return {
           user_id: src.user_id,
@@ -49,22 +43,41 @@ export async function GET(req: NextRequest) {
           source_title: a.sourceTitle,
           source_url: a.sourceUrl ?? null,
           category: a.category ?? null,
-          fetched_at: new Date().toISOString(),
         }
       })
-      .filter(Boolean)
+      .filter((r): r is NonNullable<typeof r> => r !== null)
 
     let saved = 0
-    // Upsert in batches of 50 (conflict on user_id+url = update title/description)
+    // Batch upsert via raw SQL — ON CONFLICT (user_id, url) DO NOTHING
     for (let i = 0; i < rows.length; i += 50) {
       const batch = rows.slice(i, i + 50)
-      const { error } = await db
-        .from('articles')
-        .upsert(batch)
-      if (!error) saved += batch.length
+      const now = new Date().toISOString()
+
+      // Build multi-row INSERT ... ON CONFLICT DO NOTHING
+      const placeholders = batch.map((_, j) => {
+        const base = j * 9
+        return `($${base+1}, $${base+2}, $${base+3}, $${base+4}, $${base+5}, $${base+6}, $${base+7}, $${base+8}, $${base+9})`
+      }).join(', ')
+
+      const values = batch.flatMap((r) => [
+        r.user_id, r.source_id, r.title, r.url, r.description,
+        r.published_at, now, r.source_title, r.source_url,
+      ])
+
+      const result = await rawQuery<{ id: string }>(
+        `INSERT INTO articles (user_id, source_id, title, url, description, published_at, fetched_at, source_title, source_url)
+         VALUES ${placeholders}
+         ON CONFLICT (user_id, url) DO UPDATE SET
+           title = EXCLUDED.title,
+           description = EXCLUDED.description,
+           fetched_at = EXCLUDED.fetched_at
+         RETURNING id`,
+        values
+      )
+      saved += result.length
     }
 
-    // Delete articles older than retention period
+    // Clean up articles older than retention period
     await rawQuery(
       `DELETE FROM articles WHERE fetched_at < now() - interval '${RETENTION_DAYS} days'`,
       []
