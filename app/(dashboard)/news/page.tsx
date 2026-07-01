@@ -115,27 +115,25 @@ export default function NewsPage() {
             className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {/* Source filter */}
-          {sources.length > 2 && (
-            <div className="flex gap-2 flex-wrap">
-              {sources.map((src) => (
-                <button
-                  key={src}
-                  onClick={() => setActiveSource(src === 'Все' ? '' : (activeSource === src ? '' : src))}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    (src === 'Все' && !activeSource) || activeSource === src
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {src}
-                  {src === 'Все'
-                    ? ` (${articles.length})`
-                    : ` (${articles.filter((a) => a.sourceTitle === src).length})`}
-                </button>
-              ))}
-            </div>
-          )}
-          {/* Category filter */}
+          <div className="flex gap-2 flex-wrap">
+            {sources.map((src) => (
+              <button
+                key={src}
+                onClick={() => setActiveSource(src === 'Все' ? '' : (activeSource === src ? '' : src))}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  (src === 'Все' && !activeSource) || activeSource === src
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {src}
+                {src === 'Все'
+                  ? ` (${articles.length})`
+                  : ` (${articles.filter((a) => a.sourceTitle === src).length})`}
+              </button>
+            ))}
+          </div>
+          {/* Category filter — only if there are multiple categories */}
           {categories.length > 2 && (
             <div className="flex gap-2 flex-wrap">
               {categories.map((cat) => (
