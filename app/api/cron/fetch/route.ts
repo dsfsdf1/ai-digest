@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
       const batch = rows.slice(i, i + 50)
       const { error } = await db
         .from('articles')
-        .upsert(batch, { onConflict: 'user_id,url', ignoreDuplicates: true })
+        .upsert(batch)
       if (!error) saved += batch.length
     }
 
