@@ -75,7 +75,11 @@ function extractText(post: VkPost): string {
   if (!text && post.copy_history?.length) {
     text = post.copy_history[0].text ?? ''
   }
-  return text.replace(/\n{3,}/g, '\n\n').trim().slice(0, 600)
+  return text
+    .replace(/https?:\/\/\S+/g, '') // strip VK tracking links and any other URLs
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 600)
 }
 
 function extractAttachmentTitle(post: VkPost): string {
