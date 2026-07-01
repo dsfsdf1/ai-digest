@@ -115,24 +115,18 @@ export default function NewsPage() {
             className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {/* Source filter */}
-          <div className="flex gap-2 flex-wrap">
-            {sources.map((src) => (
-              <button
-                key={src}
-                onClick={() => setActiveSource(src === 'Все' ? '' : (activeSource === src ? '' : src))}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  (src === 'Все' && !activeSource) || activeSource === src
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {src}
-                {src === 'Все'
-                  ? ` (${articles.length})`
-                  : ` (${articles.filter((a) => a.sourceTitle === src).length})`}
-              </button>
+          <select
+            value={activeSource}
+            onChange={(e) => setActiveSource(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Все источники ({articles.length})</option>
+            {sources.slice(1).map((src) => (
+              <option key={src} value={src}>
+                {src} ({articles.filter((a) => a.sourceTitle === src).length})
+              </option>
             ))}
-          </div>
+          </select>
           {/* Category filter — only if there are multiple categories */}
           {categories.length > 2 && (
             <div className="flex gap-2 flex-wrap">
