@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
     const articles = await fetchArticles(sources as Source[], since)
 
-    // Exclude articles without a date and those outside the selected period
+    // Exclude articles outside the selected period; articles without a date (scraped HTML) are always included
     const filtered = articles.filter((a) => {
-      if (!a.publishedAt) return false
+      if (!a.publishedAt) return true
       return new Date(a.publishedAt) >= since
     })
 

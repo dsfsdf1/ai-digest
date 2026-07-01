@@ -4,14 +4,14 @@ const VK_API = 'https://api.vk.com/method'
 const VK_VERSION = '5.199'
 
 export function isVkSource(url: string): boolean {
-  return /vk\.com\//i.test(url)
+  return /vk\.(com|ru)\//i.test(url)
 }
 
 export function extractVkDomain(url: string): string {
   // https://vk.com/rbc → rbc
-  // https://vk.com/public123456 → public123456
-  const m = url.match(/vk\.com\/([^/?#]+)/i)
-  return m ? m[1] : url
+  // https://vk.ru/studio21 → studio21
+  const m = url.match(/vk\.(com|ru)\/([^/?#]+)/i)
+  return m ? m[2] : url
 }
 
 export async function fetchVkPosts(source: Source, since: Date): Promise<Article[]> {
