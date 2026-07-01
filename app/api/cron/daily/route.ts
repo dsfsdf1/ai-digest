@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, rawQuery } from '@/lib/db/client'
 import { runDigest } from '@/lib/digest'
 
-const MATCH_WINDOW_MIN = 1 // cron runs every 1 min — ±1 min catches the exact minute + 1 retry
+const MATCH_WINDOW_MIN = 0 // exact match — cron runs every minute so it will always hit
 const CONCURRENCY = 4 // matches DB pool size (max: 5), keeps the single-core VDS responsive
 let running = false // prevents overlapping cron invocations if a run takes longer than 1 minute
 
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
         Math.abs(sentLocalMinutes - targetMinutes),
         1440 - Math.abs(sentLocalMinutes - targetMinutes)
       )
-      if (diff <= MATCH_WINDOW_MIN) blocked.add(row.user_id)
+      if (diff <= 1) blocked.add(row.user_id) // 1-min idempotency regardless of match window
     }
 
     const toRun = dueUserIds.filter((id) => !blocked.has(id))
