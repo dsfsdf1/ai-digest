@@ -22,10 +22,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth()
-    const result = await runDigest(user.id, 'manual')
+    const { id } = await params
+
+    const { data: run } = await db.from('digest_runs').select('digest_id').eq('id', id).eq('user_id', user.id).single()
+    if (!run?.digest_id) return NextResponse.json({ error: 'Дайджест не найден' }, { status: 404 })
+
+    const result = await runDigest(run.digest_id, 'manual')
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }

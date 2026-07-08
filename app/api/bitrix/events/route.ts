@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db/client'
 import { sendBotMessage } from '@/lib/adapters/bitrix24'
-import { runDigest } from '@/lib/digest'
+import { runDigest, getDefaultDigestId } from '@/lib/digest'
 
 export async function GET() {
   return NextResponse.json({ ok: true, status: 'events endpoint alive' })
@@ -78,8 +78,13 @@ async function handleConnect(userId: string, dialogId: string) {
 }
 
 async function handleNow(userId: string, dialogId: string) {
+  const digestId = await getDefaultDigestId(userId)
+  if (!digestId) {
+    await sendBotMessage(userId, dialogId, '❌ У вас пока нет ни одного дайджеста. Создайте его в приложении.')
+    return
+  }
   await sendBotMessage(userId, dialogId, '⏳ Формирую дайджест...')
-  const result = await runDigest(userId, 'command')
+  const result = await runDigest(digestId, 'command')
   if (!result.ok) {
     await sendBotMessage(userId, dialogId, `❌ Ошибка: ${result.error}`)
   }

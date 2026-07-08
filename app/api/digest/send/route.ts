@@ -18,11 +18,14 @@ export async function POST(req: NextRequest) {
     if (!run?.message_text) {
       return NextResponse.json({ error: 'Дайджест не найден или пустой' }, { status: 404 })
     }
+    if (!run.digest_id) {
+      return NextResponse.json({ error: 'У этого запуска нет привязанного дайджеста' }, { status: 400 })
+    }
 
-    const { sent, errors } = await sendToIntegrations(user.id, run.message_text)
+    const { sent, errors } = await sendToIntegrations(run.digest_id, run.message_text)
 
     if (sent.length === 0) {
-      return NextResponse.json({ ok: false, error: 'Нет активных интеграций. Настройте их на вкладке «Интеграции».' })
+      return NextResponse.json({ ok: false, error: 'Нет активных интеграций. Настройте их в дайджесте.' })
     }
 
     return NextResponse.json({ ok: true, sent, errors })

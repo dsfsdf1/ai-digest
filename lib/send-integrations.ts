@@ -6,10 +6,10 @@ interface IntegrationRow {
   settings: Record<string, string>
 }
 
-export async function sendToIntegrations(userId: string, message: string): Promise<{ sent: string[]; errors: string[] }> {
+export async function sendToIntegrations(digestId: string, message: string): Promise<{ sent: string[]; errors: string[] }> {
   const rows = await rawQuery<IntegrationRow>(
-    `SELECT id, enabled, settings FROM integrations WHERE user_id = $1 AND enabled = true`,
-    [userId]
+    `SELECT id, enabled, settings FROM integrations WHERE digest_id = $1 AND enabled = true`,
+    [digestId]
   )
 
   const sent: string[] = []

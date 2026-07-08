@@ -90,7 +90,7 @@ export default function HistoryPage() {
         <div className="text-center py-16 bg-white border border-dashed border-slate-200 rounded-xl">
           <p className="text-4xl mb-3">📋</p>
           <p className="text-slate-600 font-medium">История пуста</p>
-          <p className="text-slate-400 text-sm mt-1">Запустите первый дайджест на странице Настроек</p>
+          <p className="text-slate-400 text-sm mt-1">Запустите первый дайджест на странице «Дайджесты»</p>
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -102,6 +102,11 @@ export default function HistoryPage() {
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${st.className}`}>{st.label}</span>
                   <span className="text-xs text-slate-400">{TYPE[run.run_type] ?? run.run_type}</span>
+                  {(run as unknown as { digest_name?: string }).digest_name && (
+                    <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-medium">
+                      {(run as unknown as { digest_name?: string }).digest_name}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm font-semibold text-slate-900 mb-0.5">
                   {format(new Date(run.created_at), 'd MMMM, HH:mm', { locale: ru })}

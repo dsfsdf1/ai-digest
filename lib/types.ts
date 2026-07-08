@@ -48,9 +48,33 @@ export interface BitrixConnection {
   updated_at: string
 }
 
+export interface Digest {
+  id: string
+  user_id: string
+  name: string
+  send_time: string
+  digest_times: string[]
+  timezone: string
+  language: string
+  format: 'short' | 'executive'
+  max_items: number
+  auto_send_enabled: boolean
+  focus_prompt: string | null
+  ai_provider: 'openai' | 'groq' | 'gemini' | 'custom'
+  openai_api_key: string | null
+  groq_api_key: string | null
+  gemini_api_key: string | null
+  custom_api_url: string | null
+  custom_api_key: string | null
+  custom_model: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface DigestRun {
   id: string
   user_id: string
+  digest_id: string | null
   run_type: 'manual' | 'auto' | 'command'
   status: 'success' | 'error' | 'no_news'
   period_from: string | null

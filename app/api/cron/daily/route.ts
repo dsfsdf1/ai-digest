@@ -18,24 +18,24 @@ export async function GET(req: NextRequest) {
   running = true
 
   try {
-    // Get all users with auto_send enabled
-    const { data: settings } = await db
-      .from('digest_settings')
-      .select('user_id, send_time, digest_times, timezone, auto_send_enabled')
+    // Get all digests with auto_send enabled
+    const { data: digests } = await db
+      .from('digests')
+      .select('id, user_id, send_time, digest_times, timezone, auto_send_enabled')
       .eq('auto_send_enabled', true)
 
-    if (!settings?.length) return NextResponse.json({ ok: true, ran: 0 })
+    if (!digests?.length) return NextResponse.json({ ok: true, ran: 0 })
 
     const now = new Date()
-    // user_id -> matched local slot ("HH:MM"), used for per-slot idempotency
+    // digest_id -> matched local slot ("HH:MM"), used for per-slot idempotency
     const due = new Map<string, string>()
 
-    for (const s of settings) {
-      const times: string[] = (Array.isArray(s.digest_times) && s.digest_times.length)
-        ? s.digest_times
-        : [s.send_time || '09:00']
+    for (const d of digests) {
+      const times: string[] = (Array.isArray(d.digest_times) && d.digest_times.length)
+        ? d.digest_times
+        : [d.send_time || '09:00']
 
-      const tzOffset = getTzOffset(s.timezone)
+      const tzOffset = getTzOffset(d.timezone)
       const localMinutes = (now.getUTCHours() * 60 + now.getUTCMinutes() + tzOffset * 60 + 1440) % 1440
 
       const matchedTime = times.find((t) => {
@@ -48,29 +48,29 @@ export async function GET(req: NextRequest) {
         return diff <= MATCH_WINDOW_MIN
       })
 
-      if (matchedTime) due.set(s.user_id, matchedTime)
+      if (matchedTime) due.set(d.id, matchedTime)
     }
 
     if (!due.size) return NextResponse.json({ ok: true, ran: 0 })
 
-    const dueUserIds = [...due.keys()]
+    const dueDigestIds = [...due.keys()]
 
-    // Idempotency: skip a user only if THIS SAME slot already sent recently —
+    // Idempotency: skip a digest only if THIS SAME slot already sent recently —
     // changing the schedule (e.g. 01:12 -> 01:20 a few minutes later) must not be blocked.
-    const recentRows = await rawQuery<{ user_id: string; created_at: string }>(
-      `SELECT user_id, created_at FROM digest_runs
-       WHERE user_id = ANY($1) AND run_type = 'auto' AND created_at > now() - interval '20 minutes'`,
-      [dueUserIds]
+    const recentRows = await rawQuery<{ digest_id: string; created_at: string }>(
+      `SELECT digest_id, created_at FROM digest_runs
+       WHERE digest_id = ANY($1) AND run_type = 'auto' AND created_at > now() - interval '20 minutes'`,
+      [dueDigestIds]
     )
 
     const blocked = new Set<string>()
     for (const row of recentRows) {
-      const slot = due.get(row.user_id)
+      const slot = due.get(row.digest_id)
       if (!slot) continue
       const [h, m] = slot.split(':').map(Number)
       const sentAt = new Date(row.created_at)
       const tzOffset = getTzOffset(
-        settings.find((s: { user_id: string }) => s.user_id === row.user_id)?.timezone ?? 'Europe/Moscow'
+        digests.find((d: { id: string }) => d.id === row.digest_id)?.timezone ?? 'Europe/Moscow'
       )
       const sentLocalMinutes = (sentAt.getUTCHours() * 60 + sentAt.getUTCMinutes() + tzOffset * 60 + 1440) % 1440
       const targetMinutes = h * 60 + m
@@ -78,10 +78,10 @@ export async function GET(req: NextRequest) {
         Math.abs(sentLocalMinutes - targetMinutes),
         1440 - Math.abs(sentLocalMinutes - targetMinutes)
       )
-      if (diff <= 1) blocked.add(row.user_id) // 1-min idempotency regardless of match window
+      if (diff <= 1) blocked.add(row.digest_id) // 1-min idempotency regardless of match window
     }
 
-    const toRun = dueUserIds.filter((id) => !blocked.has(id))
+    const toRun = dueDigestIds.filter((id) => !blocked.has(id))
 
     let ran = 0
     for (let i = 0; i < toRun.length; i += CONCURRENCY) {

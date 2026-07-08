@@ -5,11 +5,10 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 const nav = [
+  { href: '/digests', label: 'Дайджесты', icon: '🗂️' },
   { href: '/sources', label: 'Источники', icon: '📰' },
   { href: '/news', label: 'Новости', icon: '🗞️' },
-  { href: '/settings', label: 'Настройки', icon: '⚙️' },
   { href: '/history', label: 'История', icon: '📋' },
-  { href: '/integrations', label: 'Интеграции', icon: '🔗' },
 ]
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
