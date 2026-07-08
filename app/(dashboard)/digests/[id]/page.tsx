@@ -56,6 +56,8 @@ export default function DigestEditPage({ params }: { params: Promise<{ id: strin
   const [sources, setSources] = useState<Source[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingSources, setSavingSources] = useState(false)
+  const [sourcesSaved, setSourcesSaved] = useState(false)
   const [saved, setSaved] = useState(false)
   const [running, setRunning] = useState(false)
   const [runResult, setRunResult] = useState<{ ok: boolean; error?: string } | null>(null)
@@ -104,18 +106,56 @@ export default function DigestEditPage({ params }: { params: Promise<{ id: strin
 
   useEffect(() => { fetchData() }, [id])
 
+  function digestPayload() {
+    if (!digest) return null
+    const {
+      name, send_time, digest_times, timezone, format, max_items, auto_send_enabled,
+      focus_prompt, ai_provider, openai_api_key, groq_api_key, gemini_api_key,
+      custom_api_url, custom_api_key, custom_model, source_ids,
+    } = digest
+    return {
+      name, send_time, digest_times, timezone, format, max_items, auto_send_enabled,
+      focus_prompt, ai_provider, openai_api_key, groq_api_key, gemini_api_key,
+      custom_api_url, custom_api_key, custom_model, source_ids,
+    }
+  }
+
   async function save(e?: React.FormEvent) {
     e?.preventDefault()
-    if (!digest) return
+    const payload = digestPayload()
+    if (!payload) return
     setSaving(true)
-    await fetch(`/api/digests/${id}`, {
+    const res = await fetch(`/api/digests/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(digest),
+      body: JSON.stringify(payload),
     })
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    if (res.ok) {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      alert(`Не удалось сохранить: ${data.error ?? 'ошибка'}`)
+    }
+  }
+
+  async function saveSources() {
+    if (!digest) return
+    setSavingSources(true)
+    const res = await fetch(`/api/digests/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_ids: digest.source_ids }),
+    })
+    setSavingSources(false)
+    if (res.ok) {
+      setSourcesSaved(true)
+      setTimeout(() => setSourcesSaved(false), 2000)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      alert(`Не удалось сохранить источники: ${data.error ?? 'ошибка'}`)
+    }
   }
 
   async function runNow() {
@@ -240,6 +280,18 @@ export default function DigestEditPage({ params }: { params: Promise<{ id: strin
                 </label>
               ))}
             </div>
+          )}
+          {sources.length > 0 && (
+            <button
+              type="button"
+              onClick={saveSources}
+              disabled={savingSources}
+              className={`mt-3 w-full py-2 rounded-lg text-sm font-semibold transition-all ${
+                sourcesSaved ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+              } disabled:opacity-50`}
+            >
+              {sourcesSaved ? '✓ Источники сохранены' : savingSources ? 'Сохранение...' : 'Сохранить источники'}
+            </button>
           )}
         </div>
 
