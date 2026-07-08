@@ -99,3 +99,21 @@ alter table digest_settings
   add column if not exists custom_api_url text,
   add column if not exists custom_api_key text,
   add column if not exists custom_model text;
+
+-- Article cache (accumulates history via periodic cron fetch)
+create table if not exists articles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  source_id uuid references sources(id) on delete cascade,
+  title text not null,
+  url text not null,
+  description text,
+  published_at timestamptz,
+  fetched_at timestamptz default now(),
+  source_title text,
+  source_url text,
+  category text,
+  unique(user_id, url)
+);
+create index if not exists articles_user_fetched on articles(user_id, fetched_at desc);
+create index if not exists articles_user_published on articles(user_id, published_at desc);
