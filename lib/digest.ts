@@ -1,6 +1,6 @@
 import { db } from './db/client'
 import { fetchArticles } from './adapters/rss'
-import { buildDigest, formatDigestMessage } from './adapters/openai'
+import { buildDigest, filterRelevantArticles, formatDigestMessage } from './adapters/openai'
 import { sendToIntegrations } from './send-integrations'
 import { Source } from './types'
 
@@ -76,7 +76,21 @@ async function executeDigest(
     apiKey: settings?.custom_api_key || undefined,
     model: settings?.custom_model || undefined,
   } : undefined
-  const digest = await buildDigest(articles, maxItems, settings?.focus_prompt, provider, apiKey, custom)
+
+  const relevantArticles = await filterRelevantArticles(articles, settings?.focus_prompt, provider, apiKey, custom)
+
+  if (relevantArticles.length === 0) {
+    await db.from('digest_runs').update({
+      status: 'no_news',
+      sources_count: sources.length,
+      articles_found: articles.length,
+      period_from: periodFrom.toISOString(),
+      period_to: periodTo.toISOString(),
+    }).eq('id', runId)
+    return { ok: true }
+  }
+
+  const digest = await buildDigest(relevantArticles, maxItems, settings?.focus_prompt, provider, apiKey, custom)
   const articlesUsed = Object.values(digest.byCategory).flat().length
   const message = formatDigestMessage(digest, articles.length, articlesUsed, sources.length)
 

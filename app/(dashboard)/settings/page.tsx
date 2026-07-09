@@ -40,14 +40,19 @@ export default function SettingsPage() {
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    await fetch('/api/settings', {
+    const res = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     })
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    if (res.ok) {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      alert(`Не удалось сохранить: ${data.error ?? 'ошибка'}`)
+    }
   }
 
   async function runNow() {

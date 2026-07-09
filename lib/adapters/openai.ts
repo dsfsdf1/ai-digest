@@ -47,6 +47,66 @@ interface DigestResult {
   byCategory: Record<string, CategoryItem[]>
 }
 
+const FILTER_BATCH_SIZE = 60
+
+// Narrows the article pool to ones topically relevant to the reader's focus profile,
+// *before* summarization — otherwise a strong focus prompt gets diluted by whatever
+// unrelated headlines happen to score as "important" in the final structuring pass.
+export async function filterRelevantArticles(
+  articles: Article[],
+  focusPrompt: string | undefined | null,
+  provider: AiProvider = 'openai',
+  apiKey?: string,
+  custom?: CustomConfig
+): Promise<Article[]> {
+  const prompt = focusPrompt?.trim()
+  if (!prompt || articles.length === 0) return articles
+
+  const batches: Article[][] = []
+  for (let i = 0; i < articles.length; i += FILTER_BATCH_SIZE) {
+    batches.push(articles.slice(i, i + FILTER_BATCH_SIZE))
+  }
+
+  const client = getClient(provider, apiKey, custom)
+  const model = getModel(provider, custom)
+  const supportsJsonMode = provider !== 'gemini' && provider !== 'custom'
+
+  const filtered = await Promise.all(batches.map(async (batch) => {
+    const list = batch
+      .map((a, i) => `[${i + 1}] ${a.title}${a.description ? ' — ' + a.description.slice(0, 150) : ''}`)
+      .join('\n')
+
+    const filterPrompt = `Профиль читателя: ${prompt}
+
+Вот пронумерованный список новостей:
+
+${list}
+
+Определи, какие из этих новостей релевантны профилю читателя — по теме, отрасли, упомянутым продуктам, материалам, процессам, законодательству, ценам или другим аспектам, важным для этого профиля. Учитывай смысловую близость, а не только точное совпадение слов.
+
+Ответь строго в формате JSON: {"relevant": [номера релевантных новостей]}. Если релевантных новостей нет — верни {"relevant": []}.`
+
+    try {
+      const response = await client.chat.completions.create({
+        model,
+        messages: [{ role: 'user', content: filterPrompt }],
+        ...(supportsJsonMode ? { response_format: { type: 'json_object' } } : {}),
+        temperature: 0,
+      })
+      let content = response.choices[0].message.content ?? '{}'
+      content = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+      const parsed = JSON.parse(content) as { relevant?: number[] }
+      const indices = new Set(parsed.relevant ?? [])
+      return batch.filter((_, i) => indices.has(i + 1))
+    } catch {
+      // If a batch's filter call fails, keep it unfiltered rather than silently losing those articles
+      return batch
+    }
+  }))
+
+  return filtered.flat()
+}
+
 interface CategoryItem {
   title: string
   summary: string

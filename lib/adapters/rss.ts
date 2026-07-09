@@ -156,10 +156,9 @@ async function scrapeHtml(siteUrl: string, sourceTitle: string, category: string
   let m: RegExpExecArray | null
   while ((m = linkRe.exec(html)) !== null) {
     const href = m[1].trim()
-    const text = stripHtml(m[2]).trim()
+    const inner = m[2]
 
     if (!href || href.startsWith('#') || href.startsWith('javascript') || href.startsWith('mailto')) continue
-    if (text.length < 20 || text.length > 250) continue
 
     let url: string
     try {
@@ -178,11 +177,27 @@ async function scrapeHtml(siteUrl: string, sourceTitle: string, category: string
 
     if (!looksLikeArticle) continue
 
+    // "Card" style markup wraps an image + heading + description all inside one <a> —
+    // grabbing the raw stripped text would concatenate them into one giant blob, so prefer
+    // the nested heading as the title when present, with a plain-text fallback otherwise.
+    const headingMatch = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/i.exec(inner)
+    let title: string
+    let description = ''
+    if (headingMatch) {
+      title = stripHtml(headingMatch[1]).trim()
+      if (title.length < 8 || title.length > 200) continue
+      const descMatch = /<(?:div|p)[^>]*class=["'][^"']*(?:text|desc|summary|anons|excerpt)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p)>/i.exec(inner)
+      description = descMatch ? stripHtml(descMatch[1]).trim() : ''
+    } else {
+      title = stripHtml(inner).trim()
+      if (title.length < 20 || title.length > 250) continue
+    }
+
     seen.add(url)
     articles.push({
-      title: text,
+      title,
       url,
-      description: '',
+      description,
       publishedAt: null,
       sourceTitle,
       sourceUrl: siteUrl,

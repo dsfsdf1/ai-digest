@@ -98,4 +98,5 @@ alter table digest_settings
   add column if not exists gemini_api_key text,
   add column if not exists custom_api_url text,
   add column if not exists custom_api_key text,
-  add column if not exists custom_model text;
+  add column if not exists custom_model text,
+  add column if not exists focus_prompt text;
