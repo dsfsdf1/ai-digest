@@ -192,17 +192,17 @@ export function formatDigestMessage(
 
   const lines: string[] = []
 
-  lines.push(`📰 AI-дайджест новостей за ${date}`)
+  lines.push(`**📰 AI-дайджест новостей за ${date}**`)
   lines.push('')
-  lines.push('🎯 Главное:')
+  lines.push('**🎯 Главное:**')
   digest.mainPoints.forEach((p, i) => lines.push(`${i + 1}. ${p}`))
 
   lines.push('')
-  lines.push('💡 Что важно для руководителей:')
+  lines.push('**💡 Что важно для руководителей:**')
   digest.insights.forEach((ins) => lines.push(`— ${ins}`))
 
   lines.push('')
-  lines.push('📋 По темам:')
+  lines.push('**📋 По темам:**')
 
   for (const [category, items] of Object.entries(digest.byCategory)) {
     lines.push('')
