@@ -53,11 +53,19 @@ async function sendTelegram(settings: Record<string, string>, message: string) {
     const res = await fetch(`https://api.telegram.org/bot${bot_token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id, text: chunk }),
+      body: JSON.stringify({ chat_id, text: markdownBoldToTelegramHtml(chunk), parse_mode: 'HTML' }),
     })
     const data = await res.json()
     if (!data.ok) throw new Error(data.description ?? 'Telegram error')
   }
+}
+
+// Telegram's legacy Markdown mode only understands single-asterisk *bold*, and MarkdownV2
+// requires escaping a long list of punctuation — HTML is the only mode that survives
+// arbitrary AI-generated text (titles/URLs) without constant escaping edge cases.
+function markdownBoldToTelegramHtml(text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
 }
 
 async function sendBitrix24(settings: Record<string, string>, message: string, dialogId?: string) {
@@ -76,12 +84,17 @@ async function sendBitrix24(settings: Record<string, string>, message: string, d
         BOT_ID: Number(bot_id),
         ...(client_id ? { CLIENT_ID: client_id } : {}),
         DIALOG_ID: dialog_id,
-        MESSAGE: chunk,
+        MESSAGE: markdownBoldToBitrixBbCode(chunk),
       }),
     })
     const data = await res.json().catch(() => ({}))
     if (data.error) throw new Error(data.error_description ?? data.error)
   }
+}
+
+// Bitrix24 uses BB-code, not Markdown — [b]bold[/b] instead of **bold**
+function markdownBoldToBitrixBbCode(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, '[b]$1[/b]')
 }
 
 async function sendMax(settings: Record<string, string>, message: string) {
@@ -98,7 +111,7 @@ async function sendMax(settings: Record<string, string>, message: string) {
           'Content-Type': 'application/json',
           'Authorization': bot_token,
         },
-        body: JSON.stringify({ text: chunk }),
+        body: JSON.stringify({ text: chunk, format: 'markdown' }),
       }
     )
     const data = await res.json().catch(() => ({}))
