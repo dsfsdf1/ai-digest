@@ -100,3 +100,13 @@ alter table digest_settings
   add column if not exists custom_api_key text,
   add column if not exists custom_model text,
   add column if not exists focus_prompt text;
+
+-- Tracks which article URLs a user has already received in a digest, so the next
+-- run doesn't reselect the same handful of stories from a slow-moving source pool.
+create table if not exists digest_sent_articles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  url text not null,
+  sent_at timestamptz default now()
+);
+create index if not exists digest_sent_articles_user_sent on digest_sent_articles(user_id, sent_at desc);

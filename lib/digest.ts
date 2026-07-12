@@ -1,10 +1,11 @@
-import { db } from './db/client'
+import { db, rawQuery } from './db/client'
 import { fetchArticles } from './adapters/rss'
 import { buildDigest, filterRelevantArticles, formatDigestMessage } from './adapters/openai'
 import { sendToIntegrations } from './send-integrations'
 import { Source } from './types'
 
 const MAX_RETRIES = 3
+const DEDUP_WINDOW_HOURS = 48 // don't reshow a story the user already got in the last N hours
 
 export async function runDigest(
   userId: string,
@@ -49,13 +50,31 @@ async function executeDigest(
   const periodFrom = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const periodTo = new Date()
 
-  const articles = await fetchArticles(sources as Source[], periodFrom)
+  const fetchedArticles = await fetchArticles(sources as Source[], periodFrom)
+
+  if (fetchedArticles.length === 0) {
+    await db.from('digest_runs').update({
+      status: 'no_news',
+      sources_count: sources.length,
+      articles_found: 0,
+      period_from: periodFrom.toISOString(),
+      period_to: periodTo.toISOString(),
+    }).eq('id', runId)
+    return { ok: true }
+  }
+
+  const recentlySent = await rawQuery<{ url: string }>(
+    `SELECT DISTINCT url FROM digest_sent_articles WHERE user_id = $1 AND sent_at > now() - interval '${DEDUP_WINDOW_HOURS} hours'`,
+    [userId]
+  )
+  const sentUrls = new Set(recentlySent.map((r) => r.url))
+  const articles = fetchedArticles.filter((a) => !sentUrls.has(a.url))
 
   if (articles.length === 0) {
     await db.from('digest_runs').update({
       status: 'no_news',
       sources_count: sources.length,
-      articles_found: 0,
+      articles_found: fetchedArticles.length,
       period_from: periodFrom.toISOString(),
       period_to: periodTo.toISOString(),
     }).eq('id', runId)
@@ -83,7 +102,7 @@ async function executeDigest(
     await db.from('digest_runs').update({
       status: 'no_news',
       sources_count: sources.length,
-      articles_found: articles.length,
+      articles_found: fetchedArticles.length,
       period_from: periodFrom.toISOString(),
       period_to: periodTo.toISOString(),
     }).eq('id', runId)
@@ -92,12 +111,21 @@ async function executeDigest(
 
   const digest = await buildDigest(relevantArticles, maxItems, settings?.focus_prompt, provider, apiKey, custom)
   const articlesUsed = Object.values(digest.byCategory).flat().length
-  const message = formatDigestMessage(digest, articles.length, articlesUsed, sources.length)
+  const message = formatDigestMessage(digest, fetchedArticles.length, articlesUsed, sources.length)
+
+  const usedUrls = Object.values(digest.byCategory).flat().map((item) => item.url)
+  if (usedUrls.length) {
+    const placeholders = usedUrls.map((_, i) => `($1, $${i + 2})`).join(',')
+    await rawQuery(
+      `INSERT INTO digest_sent_articles (user_id, url) VALUES ${placeholders}`,
+      [userId, ...usedUrls]
+    )
+  }
 
   await db.from('digest_runs').update({
     status: 'success',
     sources_count: sources.length,
-    articles_found: articles.length,
+    articles_found: fetchedArticles.length,
     articles_used: articlesUsed,
     message_text: message,
     period_from: periodFrom.toISOString(),

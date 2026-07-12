@@ -89,6 +89,10 @@ export async function GET(req: NextRequest) {
       `DELETE FROM articles WHERE fetched_at < now() - interval '${RETENTION_DAYS} days'`,
       []
     )
+    await rawQuery(
+      `DELETE FROM digest_sent_articles WHERE sent_at < now() - interval '${RETENTION_DAYS} days'`,
+      []
+    )
 
     return NextResponse.json({ ok: true, saved, total: rows.length })
   } finally {
