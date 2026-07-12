@@ -136,10 +136,10 @@ async function scrapeWeb(source: Source, since: Date): Promise<Article[]> {
   }
 
   // Fallback: fetch HTML and extract article links with heuristics
-  return scrapeHtml(source.url, source.title, source.category)
+  return scrapeHtml(source.url, source.title, source.category, since)
 }
 
-async function scrapeHtml(siteUrl: string, sourceTitle: string, category: string): Promise<Article[]> {
+async function scrapeHtml(siteUrl: string, sourceTitle: string, category: string, since: Date): Promise<Article[]> {
   const res = await fetch(siteUrl, {
     headers: { 'User-Agent': RSS_UA },
     signal: AbortSignal.timeout(10000),
@@ -193,12 +193,15 @@ async function scrapeHtml(siteUrl: string, sourceTitle: string, category: string
       if (title.length < 20 || title.length > 250) continue
     }
 
+    const pubDate = parseCardDate(inner)
+    if (pubDate && pubDate < since) continue
+
     seen.add(url)
     articles.push({
       title,
       url,
       description,
-      publishedAt: null,
+      publishedAt: pubDate?.toISOString() ?? null,
       sourceTitle,
       sourceUrl: siteUrl,
       category,
@@ -208,6 +211,17 @@ async function scrapeHtml(siteUrl: string, sourceTitle: string, category: string
   }
 
   return articles
+}
+
+// Many "card" style sites put a plain DD.MM.YYYY date next to the headline
+// (e.g. <span class="date">12.07.2026</span>) — without it, scraped articles
+// never age out and the same old story keeps resurfacing as "new".
+function parseCardDate(html: string): Date | null {
+  const m = /class=["'][^"']*\bdate\b[^"']*["'][^>]*>\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/i.exec(html)
+  if (!m) return null
+  const [, day, month, year] = m
+  const d = new Date(Number(year), Number(month) - 1, Number(day))
+  return isNaN(d.getTime()) ? null : d
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
